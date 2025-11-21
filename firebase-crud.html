@@ -4,37 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gym Admin</title>
+    <link rel="stylesheet" href="resources/firebase-crud.css">
 </head>
 <body>
-    <label> First Name</label>
-    <input type="text" id="FnameInp">
-    <br></br>
-    <label> Last Name</label>
-    <input type="text" id="LnameInp">
-    <br></br>
 
-    <label>Mobile</label>
-    <input type="text" id="MobileInp">
-    <br></br>
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <h2>Gym Admin</h2>
+        <a href="firebase_crud.html">➕ Register Member</a>
+        <a href="members.html">📋 Members List</a>
+    </div>
 
-    <label>Uid</label>
-    <input type="text" id="UidInp" >
-    <br><br>
+    <!-- PAGE CONTENT -->
+    <div class="content">
 
-    <label>QR Code</label>
-    <div id="qr"></div>
+        <h1>Register / Edit Member</h1>
 
+        <label>First Name</label><br>
+        <input type="text" id="FnameInp"><br><br>
 
+        <label>Last Name</label><br>
+        <input type="text" id="LnameInp"><br><br>
 
-    <button id="AddBtn">Add</button>
-    <button id="ReadBtn">Read</button>
-    <button id="UpdateBtn">Update</button>
-    <button id="DeleteBtn">Delete</button>
+        <label>Mobile</label><br>
+        <input type="text" id="MobileInp"><br><br>
 
-    
-    <div><img id="qrImg" width="200" height="200" alt=""></div>
-    <script type="module" src="js/app.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-    
+        <label>UID</label><br>
+        <input type="text" id="UidInp"><br><br>
+
+        <label>QR Code</label>
+        <div id="qr"></div>
+
+        <button id="AddBtn">Add</button>
+        <button id="ReadBtn">Read</button>
+        <button id="UpdateBtn">Update</button>
+        <button id="DeleteBtn">Delete</button>
+
+        <div>
+            <img id="qrImg" width="200" height="200" alt="">
+        </div>
+
+        <script type="module" src="js/app.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
+    </div>
+
 </body>
 </html>
