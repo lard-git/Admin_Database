@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gym Admin</title>
+    <title>Gym Admin - Register Member</title>
     <link rel="stylesheet" href="resources/firebase-crud.css">
 </head>
 <body>
@@ -17,36 +17,51 @@
 
     <!-- PAGE CONTENT -->
     <div class="content">
-
         <h1>Register / Edit Member</h1>
+        
+        <div class="layout-container">
+            <!-- FORM SECTION -->
+            <div class="form-section">
+                <div class="form-group">
+                    <label for="FnameInp">First Name</label>
+                    <input type="text" id="FnameInp" placeholder="Enter first name">
+                </div>
 
-        <label>First Name</label><br>
-        <input type="text" id="FnameInp"><br><br>
+                <div class="form-group">
+                    <label for="LnameInp">Last Name</label>
+                    <input type="text" id="LnameInp" placeholder="Enter last name">
+                </div>
 
-        <label>Last Name</label><br>
-        <input type="text" id="LnameInp"><br><br>
+                <div class="form-group">
+                    <label for="MobileInp">Mobile</label>
+                    <input type="text" id="MobileInp" placeholder="Enter mobile number">
+                </div>
 
-        <label>Mobile</label><br>
-        <input type="text" id="MobileInp"><br><br>
+                <div class="form-group">
+                    <label for="UidInp">UID</label>
+                    <input type="text" id="UidInp" placeholder="Auto-generated or enter existing">
+                </div>
 
-        <label>UID</label><br>
-        <input type="text" id="UidInp"><br><br>
+                <!-- BUTTONS -->
+                <div class="buttons-container">
+                    <button id="AddBtn" class="btn btn-primary">Add Member</button>
+                    <button id="ReadBtn" class="btn btn-secondary">Find Member</button>
+                    <button id="UpdateBtn" class="btn btn-warning">Update Member</button>
+                    <button id="DeleteBtn" class="btn btn-danger">Delete Member</button>
+                </div>
+            </div>
 
-        <label>QR Code</label>
-        <div id="qr"></div>
-
-        <button id="AddBtn">Add</button>
-        <button id="ReadBtn">Read</button>
-        <button id="UpdateBtn">Update</button>
-        <button id="DeleteBtn">Delete</button>
-
-        <div>
-            <img id="qrImg" width="200" height="200" alt="">
+            <!-- QR CODE SECTION -->
+            <div class="qr-section">
+                <h3>Member QR Code</h3>
+                <div class="qr-container">
+                    <img id="qrImg" width="250" height="250" alt="QR Code will appear here">
+                </div>
+                <p class="qr-note">QR code will be generated automatically when you add or find a member.</p>
+            </div>
         </div>
 
         <script type="module" src="js/app.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-
     </div>
 
 </body>

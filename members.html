@@ -2,33 +2,68 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Members List</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Members List - Gym Admin</title>
   <script type="module" src="js/members.js"></script>
-    <link rel="stylesheet" href="resources/members.css">
+  <link rel="stylesheet" href="resources/members.css">
 </head>
-
 <body>
-    <!-- SIDEBAR -->
-    <div class="sidebar">
-        <h2>Gym Admin</h2>
-        <a href="firebase_crud.html">➕ Register Member</a>
-        <a href="members.html">📋 Members List</a>
-    </div>
-    <!-- PAGE CONTENT -->
-  <h1>registerd mem</h1>
 
-  <table>
-    <thead>
-      <tr>
-        <th>UID</th>
-        <th>Name</th>
-        <th>Phone</th>
-        <th>QR Code</th>
-      </tr>
-    </thead>
-    <tbody id="memberTableBody">
-      <!-- JS will insert rows here -->
-    </tbody>
-  </table>
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h2>Gym Admin</h2>
+    <a href="firebase-crud.html">➕ Register Member</a>
+    <a href="members.html">📋 Members List</a>
+  </div>
+
+  <!-- PAGE CONTENT -->
+  <div class="content">
+    <div class="page-header">
+      <h1>Registered Members</h1>
+      <div class="header-controls">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="Search by name, phone, or UID...">
+          <button id="searchBtn">🔍</button>
+        </div>
+        <div class="stats">
+          <span id="memberCount">0</span> members
+        </div>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>UID</th>
+            <th>Name</th>
+            <th>Phone</th>
+            <th>Join Date</th>
+            <th>QR Code</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="memberTableBody">
+          <!-- JS will insert rows here -->
+        </tbody>
+      </table>
+      
+      <div id="emptyState" class="empty-state">
+        <p>No members found. <a href="firebase-crud.html">Register your first member</a></p>
+      </div>
+    </div>
+
+    <!-- QR Modal -->
+    <div id="qrModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3>Member QR Code</h3>
+        <div id="modalQrContainer"></div>
+        <p id="modalMemberInfo"></p>
+        <button id="downloadQR" class="btn btn-primary">Download QR</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
