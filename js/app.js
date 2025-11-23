@@ -62,11 +62,17 @@ async function AddData() {
 
         await set(ref(db, "Customers/" + newUID), {
             nameofcustomer: {
-                firstname: FnameInp.value,
-                lastname: LnameInp.value
-            },
-            mobile: MobileInp.value,
-            uid: Number(newUID)
+            firstname: FnameInp.value.trim(),
+            lastname: LnameInp.value.trim()
+        },
+            mobile: MobileInp.value.trim(),
+            uid: Number(newUID),
+            isCheckedIn: false,
+            lastCheckIn: null,
+            lastCheckOut: null,
+            totalVisits: 0,
+            totalTimeSpent: 0,
+            attendanceHistory: []
         });
 
         alert("Data Added Successfully!");

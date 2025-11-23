@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gym Occupancy - Gym Admin</title>
+  <script type="module" src="js/occupancy.js"></script>
+  <link rel="stylesheet" href="resources/occupancy.css">
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h2>Gym Admin</h2>
+    <a href="firebase_crud.html">➕ Register Member</a>
+    <a href="members.html">📋 Members List</a>
+    <a href="occupancy.html" class="active">🏋️ Gym Occupancy</a>
+  </div>
+
+  <!-- PAGE CONTENT -->
+  <div class="content">
+    <div class="page-header">
+      <h1>Gym Occupancy</h1>
+      <div class="occupancy-stats">
+        <div class="stat-card">
+          <h3>Currently In Gym</h3>
+          <span id="currentOccupancy">0</span>
+        </div>
+        <div class="stat-card">
+          <h3>Today's Visitors</h3>
+          <span id="todayVisitors">0</span>
+        </div>
+        <div class="stat-card">
+          <h3>Avg. Time Today</h3>
+          <span id="avgTime">0m</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Check-in Section -->
+    <div class="checkin-section">
+      <h2>Member Check-in/out</h2>
+      <div class="checkin-form">
+        <input type="text" id="memberUidInput" placeholder="Scan or enter Member UID">
+        <button id="checkInOutBtn">Check In</button>
+      </div>
+      <div id="checkinMessage" class="message"></div>
+    </div>
+
+    <!-- Current Occupancy -->
+    <div class="occupancy-section">
+      <h2>Currently in Gym</h2>
+      <div id="currentMembersList" class="members-grid">
+        <!-- Currently checked-in members will appear here -->
+      </div>
+      <div id="emptyOccupancy" class="empty-state">
+        <p>No members currently in the gym</p>
+      </div>
+    </div>
+
+    <!-- Today's Activity -->
+    <div class="activity-section">
+      <h2>Today's Activity</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Member</th>
+            <th>Check-in</th>
+            <th>Check-out</th>
+            <th>Time Spent</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="activityTableBody">
+          <!-- Today's activity will appear here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>
