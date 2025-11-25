@@ -38,6 +38,11 @@ body {
     color: #f0a500;
     transform: translateX(5px);
 }
+.sidebar a.active {
+    background: #f0a500;
+    color: #222;
+    font-weight: bold;
+}
 
 .content {
     margin-left: 240px;

@@ -101,7 +101,7 @@ function renderMembers(members) {
     });
 }
 
-// Search functionality - FIXED VERSION
+// Search functionality 
 function searchMembers() {
     const searchTerm = searchInput.value.toLowerCase().trim();
     
@@ -167,7 +167,7 @@ function viewMember(uid) {
 }
 
 function editMember(uid) {
-    // Redirect to edit page with UID parameter
+    // Redirect to edit page 
     window.location.href = `firebase-crud.html?edit=${uid}`;
 }
 
@@ -184,7 +184,7 @@ function deleteMember(uid, name) {
     }
 }
 
-// Event Listeners - MAKE SURE THESE ARE CONNECTED
+
 searchBtn.addEventListener('click', searchMembers);
 
 searchInput.addEventListener('keyup', function(event) {
@@ -193,14 +193,8 @@ searchInput.addEventListener('keyup', function(event) {
     }
 });
 
-// Also search as user types (optional - you can remove this if you prefer only button/enter search)
-searchInput.addEventListener('input', function() {
-    // Add a small delay to prevent too many searches while typing
-    clearTimeout(this.searchTimeout);
-    this.searchTimeout = setTimeout(searchMembers, 300);
-});
 
-// Clear search when clicking the X in search input
+// Clear search when clicking the X 
 searchInput.addEventListener('search', function() {
     if (this.value === '') {
         searchMembers();
@@ -213,5 +207,5 @@ window.viewMember = viewMember;
 window.editMember = editMember;
 window.deleteMember = deleteMember;
 
-// Initialize search functionality
+
 console.log('Search functionality loaded successfully');
