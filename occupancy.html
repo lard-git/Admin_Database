@@ -12,9 +12,9 @@
   <!-- SIDEBAR -->
   <div class="sidebar">
     <h2>Gym Admin</h2>
-    <a href="firebase-crud.html">➕ Register Member</a>
+    <a href="firebase_crud.html">➕ Register Member</a>
     <a href="members.html">📋 Members List</a>
-    <a href="occupancy.html" class="active"> Gym Occupancy</a>
+    <a href="occupancy.html" class="active">🏋️ Gym Occupancy</a>
   </div>
 
   <!-- PAGE CONTENT -->
@@ -31,8 +31,12 @@
           <span id="todayVisitors">0</span>
         </div>
         <div class="stat-card">
-          <h3>Avg. Time Today</h3>
-          <span id="avgTime">0m</span>
+          <h3>Active Members</h3>
+          <span id="activeMembers">0</span>
+        </div>
+        <div class="stat-card">
+          <h3>Peak Hours</h3>
+          <span id="peakHours">--:--</span>
         </div>
       </div>
     </div>
@@ -41,7 +45,7 @@
     <div class="checkin-section">
       <h2>Member Check-in/out</h2>
       <div class="checkin-form">
-        <input type="text" id="memberUidInput" placeholder="Scan or enter Member UID">
+        <input type="text" id="memberUidInput" placeholder="Scan or enter Member UID" autocomplete="off">
         <button id="checkInOutBtn">Check In</button>
       </div>
       <div id="checkinMessage" class="message"></div>
@@ -49,7 +53,7 @@
 
     <!-- Current Occupancy -->
     <div class="occupancy-section">
-      <h2>Currently in Gym</h2>
+      <h2>Currently in Gym <span class="badge" id="currentCountBadge">0</span></h2>
       <div id="currentMembersList" class="members-grid">
         <!-- Currently checked-in members will appear here -->
       </div>
@@ -60,7 +64,11 @@
 
     <!-- Today's Activity -->
     <div class="activity-section">
-      <h2>Today's Activity</h2>
+      <h2>Today's Activity <span class="badge" id="activityCountBadge">0</span></h2>
+      <div class="activity-controls">
+        <button id="refreshActivity" class="btn btn-secondary">🔄 Refresh</button>
+        <button id="clearActivity" class="btn btn-danger">🗑️ Clear Today</button>
+      </div>
       <table>
         <thead>
           <tr>
@@ -68,7 +76,8 @@
             <th>Check-in</th>
             <th>Check-out</th>
             <th>Time Spent</th>
-            <th>Status</th>
+            <th>Membership Status</th>
+            <th>Remaining Days</th>
           </tr>
         </thead>
         <tbody id="activityTableBody">
@@ -77,5 +86,6 @@
       </table>
     </div>
   </div>
+
 </body>
 </html>

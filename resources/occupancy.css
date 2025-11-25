@@ -99,6 +99,17 @@ body {
     color: #f0a500;
 }
 
+/* Badges */
+.badge {
+    background: #f0a500;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
 /* Check-in Section */
 .checkin-section {
     background: white;
@@ -158,24 +169,35 @@ body {
     padding: 10px;
     border-radius: 5px;
     font-weight: bold;
+    display: none;
 }
 
 .message.success {
     background: #d4edda;
     color: #155724;
     border: 1px solid #c3e6cb;
+    display: block;
 }
 
 .message.error {
     background: #f8d7da;
     color: #721c24;
     border: 1px solid #f5c6cb;
+    display: block;
+}
+
+.message.warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+    display: block;
 }
 
 .message.info {
     background: #cce7ff;
     color: #004085;
     border: 1px solid #b3d7ff;
+    display: block;
 }
 
 /* Occupancy Section */
@@ -187,9 +209,15 @@ body {
     margin-bottom: 30px;
 }
 
+.occupancy-section h2, .activity-section h2 {
+    margin-top: 0;
+    display: flex;
+    align-items: center;
+}
+
 .members-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 15px;
     margin-top: 20px;
 }
@@ -200,12 +228,22 @@ body {
     border-radius: 8px;
     border-left: 4px solid #28a745;
     display: flex;
-    justify-content: between;
+    justify-content: space-between;
     align-items: center;
+    transition: transform 0.2s ease;
 }
 
-.member-card.checked-out {
-    border-left-color: #6c757d;
+.member-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.member-card.expiring {
+    border-left-color: #ffc107;
+}
+
+.member-card.expired {
+    border-left-color: #dc3545;
     opacity: 0.7;
 }
 
@@ -216,16 +254,74 @@ body {
 .member-name {
     font-weight: bold;
     margin-bottom: 5px;
+    font-size: 16px;
 }
 
 .member-uid {
     font-size: 12px;
     color: #666;
+    margin-bottom: 5px;
+}
+
+.member-membership {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 8px;
+    display: inline-block;
+    font-weight: bold;
+}
+
+.membership-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.membership-warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.membership-expired {
+    background: #f8d7da;
+    color: #721c24;
 }
 
 .checkin-time {
     font-size: 11px;
     color: #888;
+    text-align: right;
+}
+
+/* Activity Section */
+.activity-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: white;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
 /* Activity Table */
@@ -248,7 +344,7 @@ td {
     border-bottom: 1px solid #e9ecef;
 }
 
-.status-in {
+.status-active {
     background: #d4edda;
     color: #155724;
     padding: 4px 8px;
@@ -257,12 +353,36 @@ td {
     font-weight: bold;
 }
 
-.status-out {
-    background: #f8f9fa;
-    color: #6c757d;
+.status-warning {
+    background: #fff3cd;
+    color: #856404;
     padding: 4px 8px;
     border-radius: 12px;
     font-size: 12px;
+    font-weight: bold;
+}
+
+.status-expired {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.days-safe {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.days-warning {
+    color: #ffc107;
+    font-weight: bold;
+}
+
+.days-danger {
+    color: #dc3545;
     font-weight: bold;
 }
 
@@ -288,10 +408,12 @@ td {
     .occupancy-stats {
         width: 100%;
         justify-content: space-between;
+        flex-wrap: wrap;
     }
     
     .stat-card {
         min-width: 120px;
+        flex: 1;
     }
     
     .checkin-form {
@@ -304,5 +426,11 @@ td {
     
     #checkInOutBtn {
         width: 100%;
+    }
+    
+    .content {
+        margin-left: 220px;
+        width: calc(100% - 220px);
+        padding: 20px;
     }
 }

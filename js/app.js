@@ -1,7 +1,6 @@
 // ------------------ Firebase Setup ------------------
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { getDatabase, ref, child, set, get, update, remove } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
+import { getDatabase, ref, set, get, update, remove } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyB6x0Si8OoiD3UDDMjXgZTMOdfv8neMtik",
@@ -17,18 +16,86 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase();
 
-
 // ------------------ DOM ELEMENTS ------------------
-
 const FnameInp = document.getElementById("FnameInp");
 const LnameInp = document.getElementById("LnameInp");
 const MobileInp = document.getElementById("MobileInp");
 const UidInp = document.getElementById("UidInp");
+const PaymentInp = document.getElementById("PaymentInp");
+const MonthsSlider = document.getElementById("MonthsSlider");
+const MonthsDisplay = document.getElementById("monthsDisplay");
+const SelectedMonthsSpan = document.getElementById("selectedMonths");
+const TotalAmountSpan = document.getElementById("totalAmount");
 const qrImg = document.getElementById("qrImg");
 
+// ------------------ PAYMENT CALCULATOR ------------------
+function initializePaymentCalculator() {
+    // Update months based on payment
+    PaymentInp.addEventListener('input', function() {
+        const payment = parseInt(this.value) || 0;
+        const calculatedMonths = Math.floor(payment / 500);
+        const maxMonths = 12;
+        
+        if (calculatedMonths > 0) {
+            const months = Math.min(calculatedMonths, maxMonths);
+            MonthsSlider.value = months;
+            updatePaymentDisplay(months);
+        }
+    });
+
+    // Update payment based on months
+    MonthsSlider.addEventListener('input', function() {
+        const months = parseInt(this.value);
+        updatePaymentDisplay(months);
+        
+        // Auto-fill payment amount
+        const paymentAmount = months * 500;
+        PaymentInp.value = paymentAmount;
+    });
+
+    function updatePaymentDisplay(months) {
+        MonthsDisplay.textContent = months + ' month' + (months > 1 ? 's' : '');
+        SelectedMonthsSpan.textContent = months;
+        TotalAmountSpan.textContent = (months * 500).toLocaleString();
+    }
+
+    // Initialize display
+    updatePaymentDisplay(1);
+}
+
+// ------------------ FORM VALIDATION ------------------
+function validateForm() {
+    if (!FnameInp.value.trim() || !LnameInp.value.trim()) {
+        alert("Please enter both first and last name");
+        return false;
+    }
+    
+    if (!MobileInp.value.trim()) {
+        alert("Please enter mobile number");
+        return false;
+    }
+
+    if (!PaymentInp.value.trim() || parseInt(PaymentInp.value) < 500) {
+        alert("Please enter payment amount (minimum ₱500)");
+        return false;
+    }
+    
+    return true;
+}
+
+function clearForm() {
+    FnameInp.value = "";
+    LnameInp.value = "";
+    MobileInp.value = "";
+    UidInp.value = "";
+    PaymentInp.value = "";
+    MonthsSlider.value = "1";
+    updatePaymentDisplay(1);
+    qrImg.src = "";
+    qrImg.alt = "QR Code will appear here";
+}
 
 // ------------------ UID GENERATION ------------------
-
 function random8Digit() {
     return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
@@ -37,88 +104,183 @@ async function generateUniqueUID() {
     for (let i = 0; i < 5; i++) {
         const candidate = random8Digit();
         const exists = await get(ref(db, "Customers/" + candidate));
-
         if (!exists.exists()) return candidate;
     }
     throw new Error("Could not generate unique UID");
 }
 
-
 // ------------------ QR CODE ------------------
-
 function generateQR(uid) {
     const payload = encodeURIComponent(uid);
     qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${payload}`;
-    qrImg.alt = `QR for ${uid}`;
+    qrImg.alt = `QR Code for Member ID: ${uid}`;
 }
 
-
 // ------------------ CRUD OPERATIONS ------------------
-
 async function AddData() {
+    if (!validateForm()) return;
+    
     try {
         const newUID = await generateUniqueUID();
         UidInp.value = newUID;
 
+        const paymentAmount = parseInt(PaymentInp.value) || 500;
+        const selectedMonths = parseInt(MonthsSlider.value) || 1;
+        
+        // Calculate dates
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + selectedMonths);
+        
+        const startDateStr = startDate.toISOString().split('T')[0];
+        const endDateStr = endDate.toISOString().split('T')[0];
+        const remainingDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
         await set(ref(db, "Customers/" + newUID), {
-            nameofcustomer: {
-            firstname: FnameInp.value.trim(),
-            lastname: LnameInp.value.trim()
-        },
-            mobile: MobileInp.value.trim(),
-            uid: Number(newUID),
-            isCheckedIn: false,
-            lastCheckIn: null,
-            lastCheckOut: null,
-            totalVisits: 0,
-            totalTimeSpent: 0,
-            attendanceHistory: []
+            personal_info: {
+                firstname: FnameInp.value.trim(),
+                lastname: LnameInp.value.trim(),
+                phone: MobileInp.value.trim()
+            },
+            membership: {
+                status: "active",
+                plan: "standard",
+                payment_amount: paymentAmount,
+                months_paid: selectedMonths,
+                start_date: startDateStr,
+                end_date: endDateStr,
+                remaining_days: remainingDays,
+                last_updated: startDateStr
+            },
+            gym_data: {
+                uid: Number(newUID),
+                is_checked_in: false,
+                total_visits: 0,
+                total_time_spent: 0
+            },
+            attendance_history: []
         });
 
-        alert("Data Added Successfully!");
+        alert(`Member Added Successfully!\nPayment: ₱${paymentAmount}\nDuration: ${selectedMonths} month(s)\nRemaining Days: ${remainingDays}`);
         generateQR(newUID);
 
     } catch (err) {
-        alert("Error: " + err);
+        alert("Error adding member: " + err.message);
     }
 }
 
 async function ReadData() {
-    const snap = await get(ref(db, "Customers/" + UidInp.value));
-    if (!snap.exists()) {
-        alert("No Data Found");
+    if (!UidInp.value.trim()) {
+        alert("Please enter a UID to find member");
         return;
     }
 
-    const data = snap.val();
-    FnameInp.value = data.nameofcustomer.firstname;
-    LnameInp.value = data.nameofcustomer.lastname;
-    MobileInp.value = data.mobile;
+    try {
+        const snap = await get(ref(db, "Customers/" + UidInp.value));
+        if (!snap.exists()) {
+            alert("No Member Found with this UID");
+            return;
+        }
 
-    generateQR(UidInp.value);
+        const data = snap.val();
+        
+        // Fill form with member data
+        FnameInp.value = data.personal_info?.firstname || "";
+        LnameInp.value = data.personal_info?.lastname || "";
+        MobileInp.value = data.personal_info?.phone || "";
+        
+        // Fill payment data
+        if (data.membership) {
+            PaymentInp.value = data.membership.payment_amount || 500;
+            const months = data.membership.months_paid || 1;
+            MonthsSlider.value = months;
+            updatePaymentDisplay(months);
+        }
+
+        generateQR(UidInp.value);
+        alert("Member data loaded successfully!");
+    } catch (err) {
+        alert("Error finding member: " + err.message);
+    }
 }
 
 async function UpdateData() {
-    await update(ref(db, "Customers/" + UidInp.value), {
-        nameofcustomer: {
-            firstname: FnameInp.value,
-            lastname: LnameInp.value
-        },
-        mobile: MobileInp.value
-    });
+    if (!UidInp.value.trim()) {
+        alert("Please enter a UID to update member");
+        return;
+    }
+    
+    if (!validateForm()) return;
 
-    alert("Data Updated!");
+    try {
+        const paymentAmount = parseInt(PaymentInp.value) || 500;
+        const selectedMonths = parseInt(MonthsSlider.value) || 1;
+        
+        // Calculate new dates
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setMonth(endDate.getMonth() + selectedMonths);
+        
+        const startDateStr = startDate.toISOString().split('T')[0];
+        const endDateStr = endDate.toISOString().split('T')[0];
+        const remainingDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+
+        await update(ref(db, "Customers/" + UidInp.value), {
+            "personal_info/firstname": FnameInp.value.trim(),
+            "personal_info/lastname": LnameInp.value.trim(),
+            "personal_info/phone": MobileInp.value.trim(),
+            "membership/payment_amount": paymentAmount,
+            "membership/months_paid": selectedMonths,
+            "membership/start_date": startDateStr,
+            "membership/end_date": endDateStr,
+            "membership/remaining_days": remainingDays,
+            "membership/last_updated": startDateStr
+        });
+
+        alert(`Member Updated Successfully!\nPayment: ₱${paymentAmount}\nDuration: ${selectedMonths} month(s)\nRemaining Days: ${remainingDays}`);
+        generateQR(UidInp.value);
+    } catch (err) {
+        alert("Error updating member: " + err.message);
+    }
 }
 
 async function DeleteData() {
-    await remove(ref(db, "Customers/" + UidInp.value));
-    alert("Data Deleted!");
+    if (!UidInp.value.trim()) {
+        alert("Please enter a UID to delete member");
+        return;
+    }
+
+    if (!confirm("Are you sure you want to delete this member? This action cannot be undone.")) {
+        return;
+    }
+
+    try {
+        await remove(ref(db, "Customers/" + UidInp.value));
+        alert("Member Deleted Successfully!");
+        clearForm();
+    } catch (err) {
+        alert("Error deleting member: " + err.message);
+    }
 }
 
+// ------------------ INITIALIZATION ------------------
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize payment calculator
+    initializePaymentCalculator();
+    
+    // Set up button events
+    document.getElementById("AddBtn").onclick = AddData;
+    document.getElementById("ReadBtn").onclick = ReadData;
+    document.getElementById("UpdateBtn").onclick = UpdateData;
+    document.getElementById("DeleteBtn").onclick = DeleteData;
 
-// ------------------ BUTTON EVENTS ------------------
-
-document.getElementById("AddBtn").onclick = AddData;
-document.getElementById("ReadBtn").onclick = ReadData;
-document.getElementById("UpdateBtn").onclick = UpdateData;
-document.getElementById("DeleteBtn").onclick = DeleteData;
+    // Enter key support
+    [FnameInp, LnameInp, MobileInp, UidInp, PaymentInp].forEach(input => {
+        input.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                AddData();
+            }
+        });
+    });
+});

@@ -12,9 +12,9 @@
   <!-- SIDEBAR -->
   <div class="sidebar">
     <h2>Gym Admin</h2>
-    <a href="firebase-crud.html">➕ Register Member</a>
+    <a href="firebase_crud.html">➕ Register Member</a>
     <a href="members.html" class="active">📋 Members List</a>
-    <a href="occupancy.html" > Gym Occupancy</a>
+    <a href="occupancy.html">🏋️ Gym Occupancy</a>
   </div>
 
   <!-- PAGE CONTENT -->
@@ -23,12 +23,32 @@
       <h1>Registered Members</h1>
       <div class="header-controls">
         <div class="search-box">
-          <input type="text" id="searchInput" placeholder="Search by name, phone, or UID...">
+          <input type="search" id="searchInput" placeholder="Search by name, phone, or UID...">
           <button id="searchBtn">🔍</button>
         </div>
         <div class="stats">
           <span id="memberCount">0</span> members
         </div>
+      </div>
+    </div>
+
+    <!-- Membership Summary Cards -->
+    <div class="summary-cards">
+      <div class="summary-card active">
+        <h3>Active Members</h3>
+        <span id="activeCount">0</span>
+      </div>
+      <div class="summary-card expiring">
+        <h3>Expiring Soon</h3>
+        <span id="expiringCount">0</span>
+      </div>
+      <div class="summary-card expired">
+        <h3>Expired</h3>
+        <span id="expiredCount">0</span>
+      </div>
+      <div class="summary-card revenue">
+        <h3>Monthly Revenue</h3>
+        <span>₱<span id="revenueAmount">0</span></span>
       </div>
     </div>
 
@@ -39,7 +59,12 @@
             <th>UID</th>
             <th>Name</th>
             <th>Phone</th>
-            <th>Join Date</th>
+            <th>Membership Status</th>
+            <th>Remaining Days</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Payment</th>
+            <th>Duration</th>
             <th>QR Code</th>
             <th>Actions</th>
           </tr>
@@ -50,7 +75,7 @@
       </table>
       
       <div id="emptyState" class="empty-state">
-        <p>No members found. <a href="firebase-crud.html">Register your first member</a></p>
+        <p>No members found. <a href="firebase_crud.html">Register your first member</a></p>
       </div>
     </div>
 
@@ -62,6 +87,28 @@
         <div id="modalQrContainer"></div>
         <p id="modalMemberInfo"></p>
         <button id="downloadQR" class="btn btn-primary">Download QR</button>
+      </div>
+    </div>
+
+    <!-- Renew Modal -->
+    <div id="renewModal" class="modal">
+      <div class="modal-content">
+        <span class="close-renew">&times;</span>
+        <h3>Renew Membership</h3>
+        <div class="renew-form">
+          <div class="form-group">
+            <label for="renewPayment">Payment Amount (₱)</label>
+            <input type="number" id="renewPayment" placeholder="500 per month" min="500" step="500">
+          </div>
+          <div class="form-group">
+            <label for="renewMonths">Months: <span id="renewMonthsDisplay">1 month</span></label>
+            <input type="range" id="renewMonths" min="1" max="12" value="1" class="slider">
+          </div>
+          <div class="payment-summary">
+            <p>Total: ₱<span id="renewTotal">500</span></p>
+          </div>
+          <button id="confirmRenew" class="btn btn-primary">Confirm Renewal</button>
+        </div>
       </div>
     </div>
   </div>
