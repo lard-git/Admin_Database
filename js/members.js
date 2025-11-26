@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-import { getDatabase, ref, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { getDatabase, ref, onValue, update, remove, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyB6x0Si8OoiD3UDDMjXgZTMOdfv8neMtik",
@@ -41,7 +41,7 @@ const confirmRenew = document.getElementById("confirmRenew");
 let allMembers = [];
 let currentLargeQR = '';
 let currentRenewMember = null;
-let totalMonthlyRevenue = 0; // Store total revenue separately
+let totalMonthlyRevenue = 0;
 
 // Realtime listener
 onValue(customersRef, (snapshot) => {
@@ -104,6 +104,15 @@ function updateSummaryCards(members, revenue = totalMonthlyRevenue) {
     revenueAmount.textContent = revenue.toLocaleString();
 }
 
+function getActualRemainingDays(member) {
+    if (!member.membership.end_date) return 0;
+    
+    const endDate = new Date(member.membership.end_date);
+    const today = new Date();
+    const remaining = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+    return Math.max(0, remaining);
+}
+
 // Render members to table
 function renderMembers(members) {
     tableBody.innerHTML = "";
@@ -121,7 +130,7 @@ function renderMembers(members) {
         
         // Calculate membership status and styling
         const membership = member.membership;
-        const remainingDays = membership.remaining_days || 0;
+        const remainingDays = getActualRemainingDays(member);
         const status = membership.status || 'unknown';
         const startDate = membership.start_date || 'N/A';
         const endDate = membership.end_date || 'N/A';
@@ -162,7 +171,7 @@ function renderMembers(members) {
             </td>
             <td>
                 <div class="action-buttons">
-                    <button class="btn btn-renew" onclick="openRenewModal('${member.key}', '${fullname.replace(/'/g, "\\'")}')">Renew</button>
+                    <button class="btn btn-renew" onclick="openRenewModal('${member.key}', '${fullname.replace(/'/g, "\\'")}', ${remainingDays})">Renew</button>
                     <button class="btn btn-delete" onclick="deleteMember('${member.key}', '${fullname.replace(/'/g, "\\'")}')">Delete</button>
                 </div>
             </td>
@@ -178,7 +187,6 @@ function searchMembers() {
     
     if (!searchTerm) {
         renderMembers(allMembers);
-        // When no search, show counts for ALL members but keep total revenue
         updateSummaryCards(allMembers, totalMonthlyRevenue);
         return;
     }
@@ -218,12 +226,10 @@ function searchMembers() {
         return status === 'expired' || remainingDays <= 0;
     }).length;
     
-    // Show filtered counts but keep TOTAL monthly revenue
     memberCount.textContent = filteredMembers.length;
     activeCount.textContent = active;
     expiringCount.textContent = expiring;
     expiredCount.textContent = expired;
-    // revenueAmount stays with totalMonthlyRevenue - don't change it!
 }
 
 // Show QR Modal
@@ -236,52 +242,99 @@ function showQRModal(uid, name) {
     qrModal.style.display = 'block';
 }
 
-// Open Renew Modal
-function openRenewModal(memberKey, name) {
-    currentRenewMember = memberKey;
+// Open Renew Modal - Now passing remainingDays
+function openRenewModal(memberKey, name, currentRemainingDays = 0) {
+    currentRenewMember = {
+        key: memberKey,
+        name: name,
+        currentRemainingDays: currentRemainingDays
+    };
     
     // Set up renew calculator
     renewPayment.value = 500;
     renewMonths.value = 1;
-    updateRenewDisplay(1);
+    updateRenewDisplay(1, currentRemainingDays);
     
     renewModal.style.display = 'block';
 }
 
-// Update renew display
-function updateRenewDisplay(months) {
+// Update renew display - Now shows extended total
+function updateRenewDisplay(months, currentRemainingDays = 0) {
+    const newDays = months * 30; // 30 days per month
+    const totalDays = currentRemainingDays + newDays;
+    
     renewMonthsDisplay.textContent = months + ' month' + (months > 1 ? 's' : '');
     renewTotal.textContent = (months * 500).toLocaleString();
+    
+    // Update the display to show the extension
+    const renewSummary = document.querySelector('.renew-summary') || createRenewSummary();
+    renewSummary.innerHTML = `
+        <p>Current: ${currentRemainingDays} days remaining</p>
+        <p>Adding: ${newDays} days (${months} month${months > 1 ? 's' : ''})</p>
+        <p class="total-days">Total: <strong>${totalDays} days</strong></p>
+    `;
 }
 
-// Confirm renewal
+// Create renew summary element
+function createRenewSummary() {
+    const summary = document.createElement('div');
+    summary.className = 'renew-summary';
+    document.querySelector('.payment-summary').appendChild(summary);
+    return summary;
+}
+
+// Confirm renewal - Now extends membership instead of replacing
 confirmRenew.addEventListener('click', async function() {
     if (!currentRenewMember) return;
     
     const paymentAmount = parseInt(renewPayment.value) || 500;
     const selectedMonths = parseInt(renewMonths.value) || 1;
+    const currentRemainingDays = currentRenewMember.currentRemainingDays || 0;
     
     try {
-        // Calculate new dates
-        const startDate = new Date();
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + selectedMonths);
+        // Get current member data to calculate proper extension
+        const memberRef = ref(db, `Customers/${currentRenewMember.key}`);
+        const snapshot = await get(memberRef);
+        const memberData = snapshot.val();
         
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
-        const remainingDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+        const currentMembership = memberData.membership || {};
+        let currentEndDate;
+        
+        // Calculate new end date based on current end date or today + extension
+        if (currentMembership.end_date && currentRemainingDays > 0) {
+            // Extend from current end date
+            currentEndDate = new Date(currentMembership.end_date);
+        } else {
+            // Start from today (expired or no current membership)
+            currentEndDate = new Date();
+        }
+        
+        const newEndDate = new Date(currentEndDate);
+        newEndDate.setDate(newEndDate.getDate() + (selectedMonths * 30));
+        
+        const startDateStr = new Date().toISOString().split('T')[0];
+        const endDateStr = newEndDate.toISOString().split('T')[0];
+        const totalRemainingDays = Math.ceil((newEndDate - new Date()) / (1000 * 60 * 60 * 24));
+        
+        // Calculate total months paid (current + new)
+        const currentMonths = currentMembership.months_paid || 0;
+        const totalMonths = currentMonths + selectedMonths;
+        
+        // Calculate total payment (current + new)
+        const currentPayment = currentMembership.payment_amount || 0;
+        const totalPayment = currentPayment + paymentAmount;
 
-        await update(ref(db, `Customers/${currentRenewMember}/membership`), {
+        await update(ref(db, `Customers/${currentRenewMember.key}/membership`), {
             status: "active",
-            payment_amount: paymentAmount,
-            months_paid: selectedMonths,
-            start_date: startDateStr,
+            payment_amount: totalPayment,
+            months_paid: totalMonths,
+            start_date: currentMembership.start_date || startDateStr, // Keep original start date
             end_date: endDateStr,
-            remaining_days: remainingDays,
-            last_updated: startDateStr
+            remaining_days: totalRemainingDays,
+            last_updated: new Date().toISOString().split('T')[0]
         });
 
-        alert(`Membership renewed successfully!\nPayment: ₱${paymentAmount}\nDuration: ${selectedMonths} month(s)`);
+        alert(`Membership extended successfully!\n\nPayment: ₱${paymentAmount}\nDuration: ${selectedMonths} month(s)\nPrevious days: ${currentRemainingDays}\nNew total: ${totalRemainingDays} days remaining`);
         renewModal.style.display = 'none';
         currentRenewMember = null;
         
@@ -330,13 +383,13 @@ renewPayment.addEventListener('input', function() {
     if (calculatedMonths > 0) {
         const months = Math.min(calculatedMonths, maxMonths);
         renewMonths.value = months;
-        updateRenewDisplay(months);
+        updateRenewDisplay(months, currentRenewMember?.currentRemainingDays || 0);
     }
 });
 
 renewMonths.addEventListener('input', function() {
     const months = parseInt(this.value);
-    updateRenewDisplay(months);
+    updateRenewDisplay(months, currentRenewMember?.currentRemainingDays || 0);
     
     // Auto-fill payment amount
     const paymentAmount = months * 500;
@@ -382,4 +435,4 @@ window.openRenewModal = openRenewModal;
 window.deleteMember = deleteMember;
 
 // Initialize renew calculator
-updateRenewDisplay(1);
+updateRenewDisplay(1, 0);

@@ -85,17 +85,17 @@ function loadMembers() {
 function normalizeMemberData(key, data) {
     console.log('Raw data for', key, ':', data); // Debug log
     
-    // Extract UID from various possible locations
+    // Extract UID 
     const uid = data.gym_data?.uid || 
                 data.personal_info?.uid || 
                 data.uid || 
                 key;
     
-    // Extract name from various possible locations
+    // Extract name 
     const firstname = data.personal_info?.firstname || '';
     const lastname = data.personal_info?.lastname || '';
     
-    // Extract phone from various possible locations
+    // Extract phone 
     const phone = data.personal_info?.phone || '';
     
     // Extract gym data with proper fallbacks
@@ -386,6 +386,15 @@ function updateTodayActivity() {
     }).join('');
 }
 
+function getActualRemainingDays(member) {
+    if (!member.membership.end_date) return 0;
+    
+    const endDate = new Date(member.membership.end_date);
+    const today = new Date();
+    const remaining = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+    return Math.max(0, remaining);
+}
+
 // Clear today's activity
 async function clearTodayActivity() {
     if (!confirm('Are you sure you want to clear all of today\'s activity records? This cannot be undone.')) {
@@ -441,14 +450,14 @@ function updateStats() {
         });
     });
     
-    // Count active members (not expired)
+    // Count active members 
     const activeMembersCount = allMembers.filter(m => {
         const membership = m.membership;
         return membership.status !== 'expired' && 
                (membership.remaining_days === undefined || membership.remaining_days > 0);
     }).length;
     
-    // Calculate peak hours (simplified - most check-ins in last hour)
+    // Calculate peak hours (most check-ins in last hour)
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
     const recentCheckins = todayActivities.filter(activity => 
