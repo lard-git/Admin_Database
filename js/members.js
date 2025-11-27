@@ -30,17 +30,24 @@ const modalQrContainer = document.getElementById("modalQrContainer");
 const modalMemberInfo = document.getElementById("modalMemberInfo");
 const closeModal = document.querySelector(".close");
 const downloadQR = document.getElementById("downloadQR");
-const renewModal = document.getElementById("renewModal");
-const closeRenewModal = document.querySelector(".close-renew");
-const renewPayment = document.getElementById("renewPayment");
-const renewMonths = document.getElementById("renewMonths");
-const renewMonthsDisplay = document.getElementById("renewMonthsDisplay");
-const renewTotal = document.getElementById("renewTotal");
-const confirmRenew = document.getElementById("confirmRenew");
+
+// Edit Modal Elements
+const editModal = document.getElementById("editModal");
+const closeEditModal = document.querySelector(".close-edit");
+const editFirstName = document.getElementById("editFirstName");
+const editLastName = document.getElementById("editLastName");
+const editPhone = document.getElementById("editPhone");
+const editUID = document.getElementById("editUID");
+const editPayment = document.getElementById("editPayment");
+const editMonths = document.getElementById("editMonths");
+const editMonthsDisplay = document.getElementById("editMonthsDisplay");
+const editSelectedMonths = document.getElementById("editSelectedMonths");
+const editTotalAmount = document.getElementById("editTotalAmount");
+const confirmEdit = document.getElementById("confirmEdit");
 
 let allMembers = [];
 let currentLargeQR = '';
-let currentRenewMember = null;
+let currentEditMember = null;
 let totalMonthlyRevenue = 0;
 
 // Realtime listener
@@ -171,7 +178,7 @@ function renderMembers(members) {
             </td>
             <td>
                 <div class="action-buttons">
-                    <button class="btn btn-renew" onclick="openRenewModal('${member.key}', '${fullname.replace(/'/g, "\\'")}', ${remainingDays})">Renew</button>
+                    <button class="btn btn-edit" onclick="openEditModal('${member.key}', '${fullname.replace(/'/g, "\\'")}', '${member.uid}')">Edit/Extend</button>
                     <button class="btn btn-delete" onclick="deleteMember('${member.key}', '${fullname.replace(/'/g, "\\'")}')">Delete</button>
                 </div>
             </td>
@@ -242,103 +249,166 @@ function showQRModal(uid, name) {
     qrModal.style.display = 'block';
 }
 
-// Open Renew Modal - Now passing remainingDays
-function openRenewModal(memberKey, name, currentRemainingDays = 0) {
-    currentRenewMember = {
-        key: memberKey,
-        name: name,
-        currentRemainingDays: currentRemainingDays
-    };
+// Open Edit Modal with member data including current membership info
+function openEditModal(memberKey, name, uid) {
+    // Find the member data
+    const member = allMembers.find(m => m.key === memberKey);
+    if (!member) return;
     
-    // Set up renew calculator
-    renewPayment.value = 500;
-    renewMonths.value = 1;
-    updateRenewDisplay(1, currentRemainingDays);
+    currentEditMember = member;
     
-    renewModal.style.display = 'block';
+    // Fill the form with member data
+    editFirstName.value = member.firstname || '';
+    editLastName.value = member.lastname || '';
+    editPhone.value = member.phone || '';
+    editUID.value = member.uid || '';
+    
+    // Get current membership data
+    const currentMembership = member.membership || {};
+    const currentPayment = currentMembership.payment_amount || 0;
+    const currentMonths = currentMembership.months_paid || 0;
+    const currentDays = getActualRemainingDays(member);
+    
+    // Display current membership info
+    document.getElementById('currentDaysDisplay').textContent = currentDays;
+    document.getElementById('currentPaymentDisplay').textContent = currentPayment.toLocaleString();
+    document.getElementById('currentMonthsDisplay').textContent = currentMonths;
+    
+    // Set up payment calculator for extension
+    editPayment.value = 500;
+    editMonths.value = 1;
+    updateEditPaymentDisplay(1, currentPayment, currentMonths);
+    
+    editModal.style.display = 'block';
 }
 
-// Update renew display - Now shows extended total
-function updateRenewDisplay(months, currentRemainingDays = 0) {
-    const newDays = months * 30; // 30 days per month
-    const totalDays = currentRemainingDays + newDays;
+// Update edit payment display with extension calculations
+function updateEditPaymentDisplay(months, currentPayment = 0, currentMonths = 0) {
+    const additionalPayment = months * 500;
+    const newTotalPayment = currentPayment + additionalPayment;
+    const newTotalMonths = currentMonths + months;
     
-    renewMonthsDisplay.textContent = months + ' month' + (months > 1 ? 's' : '');
-    renewTotal.textContent = (months * 500).toLocaleString();
+    editMonthsDisplay.textContent = months + ' month' + (months > 1 ? 's' : '');
+    editSelectedMonths.textContent = months;
+    editTotalAmount.textContent = additionalPayment.toLocaleString();
     
-    // Update the display to show the extension
-    const renewSummary = document.querySelector('.renew-summary') || createRenewSummary();
-    renewSummary.innerHTML = `
-        <p>Current: ${currentRemainingDays} days remaining</p>
-        <p>Adding: ${newDays} days (${months} month${months > 1 ? 's' : ''})</p>
-        <p class="total-days">Total: <strong>${totalDays} days</strong></p>
-    `;
+    // Update the extension summary
+    document.getElementById('newTotalPayment').textContent = newTotalPayment.toLocaleString();
+    document.getElementById('newTotalMonths').textContent = newTotalMonths;
 }
 
-// Create renew summary element
-function createRenewSummary() {
-    const summary = document.createElement('div');
-    summary.className = 'renew-summary';
-    document.querySelector('.payment-summary').appendChild(summary);
-    return summary;
-}
-
-// Confirm renewal
-confirmRenew.addEventListener('click', async function() {
-    if (!currentRenewMember) return;
+// Edit payment calculator - for extension
+editPayment.addEventListener('input', function() {
+    const payment = parseInt(this.value) || 0;
+    const calculatedMonths = Math.floor(payment / 500);
+    const maxMonths = 12;
     
-    const paymentAmount = parseInt(renewPayment.value) || 500;
-    const selectedMonths = parseInt(renewMonths.value) || 1;
-    const currentRemainingDays = currentRenewMember.currentRemainingDays || 0;
+    if (calculatedMonths > 0) {
+        const months = Math.min(calculatedMonths, maxMonths);
+        editMonths.value = months;
+        
+        // Get current membership data for calculations
+        const currentMembership = currentEditMember?.membership || {};
+        const currentPayment = currentMembership.payment_amount || 0;
+        const currentMonths = currentMembership.months_paid || 0;
+        
+        updateEditPaymentDisplay(months, currentPayment, currentMonths);
+    }
+});
+
+editMonths.addEventListener('input', function() {
+    const months = parseInt(this.value);
+    
+    // Get current membership data for calculations
+    const currentMembership = currentEditMember?.membership || {};
+    const currentPayment = currentMembership.payment_amount || 0;
+    const currentMonths = currentMembership.months_paid || 0;
+    
+    updateEditPaymentDisplay(months, currentPayment, currentMonths);
+    
+    // Auto-fill payment amount
+    const paymentAmount = months * 500;
+    editPayment.value = paymentAmount;
+});
+
+// Confirm Edit - Preserves existing membership and adds to it
+confirmEdit.addEventListener('click', async function() {
+    if (!currentEditMember) return;
+    
+    // Validate form
+    if (!editFirstName.value.trim() || !editLastName.value.trim()) {
+        alert("Please enter both first and last name");
+        return;
+    }
+    
+    if (!editPhone.value.trim()) {
+        alert("Please enter mobile number");
+        return;
+    }
+
+    if (!editPayment.value.trim() || parseInt(editPayment.value) < 500) {
+        alert("Please enter payment amount (minimum ₱500)");
+        return;
+    }
     
     try {
+        const newPaymentAmount = parseInt(editPayment.value) || 500;
+        const newMonths = parseInt(editMonths.value) || 1;
+        
         // Get current member data to calculate proper extension
-        const memberRef = ref(db, `Customers/${currentRenewMember.key}`);
+        const memberRef = ref(db, `Customers/${currentEditMember.key}`);
         const snapshot = await get(memberRef);
         const memberData = snapshot.val();
         
         const currentMembership = memberData.membership || {};
+        
+        // Calculate new dates based on existing end date
         let currentEndDate;
+        let currentRemainingDays = currentMembership.remaining_days || 0;
         
         if (currentMembership.end_date && currentRemainingDays > 0) {
-            
+            // Extend from existing end date
             currentEndDate = new Date(currentMembership.end_date);
         } else {
-            
+            // Start from today if expired
             currentEndDate = new Date();
+            currentRemainingDays = 0;
         }
         
+        // Calculate new end date by adding new months
         const newEndDate = new Date(currentEndDate);
-        newEndDate.setDate(newEndDate.getDate() + (selectedMonths * 30));
+        newEndDate.setMonth(newEndDate.getMonth() + newMonths);
         
-        const startDateStr = new Date().toISOString().split('T')[0];
-        const endDateStr = newEndDate.toISOString().split('T')[0];
+        // Calculate total remaining days
         const totalRemainingDays = Math.ceil((newEndDate - new Date()) / (1000 * 60 * 60 * 24));
         
         // Calculate total months paid (current + new)
         const currentMonths = currentMembership.months_paid || 0;
-        const totalMonths = currentMonths + selectedMonths;
+        const totalMonths = currentMonths + newMonths;
         
         // Calculate total payment (current + new)
         const currentPayment = currentMembership.payment_amount || 0;
-        const totalPayment = currentPayment + paymentAmount;
+        const totalPayment = currentPayment + newPaymentAmount;
 
-        await update(ref(db, `Customers/${currentRenewMember.key}/membership`), {
-            status: "active",
-            payment_amount: totalPayment,
-            months_paid: totalMonths,
-            start_date: currentMembership.start_date || startDateStr, // Keep original start date
-            end_date: endDateStr,
-            remaining_days: totalRemainingDays,
-            last_updated: new Date().toISOString().split('T')[0]
+        await update(ref(db, `Customers/${currentEditMember.key}`), {
+            "personal_info/firstname": editFirstName.value.trim(),
+            "personal_info/lastname": editLastName.value.trim(),
+            "personal_info/phone": editPhone.value.trim(),
+            "membership/payment_amount": totalPayment,
+            "membership/months_paid": totalMonths,
+            "membership/start_date": currentMembership.start_date || new Date().toISOString().split('T')[0],
+            "membership/end_date": newEndDate.toISOString().split('T')[0],
+            "membership/remaining_days": totalRemainingDays,
+            "membership/last_updated": new Date().toISOString().split('T')[0],
+            "membership/status": "active"
         });
 
-        alert(`Membership extended successfully!\n\nPayment: ₱${paymentAmount}\nDuration: ${selectedMonths} month(s)\nPrevious days: ${currentRemainingDays}\nNew total: ${totalRemainingDays} days remaining`);
-        renewModal.style.display = 'none';
-        currentRenewMember = null;
+        alert(`Member Updated Successfully!\n\nPersonal info updated\nPayment added: ₱${newPaymentAmount}\nDuration added: ${newMonths} month(s)\nPrevious days: ${currentRemainingDays}\nNew total: ${totalRemainingDays} days remaining`);
+        editModal.style.display = 'none';
+        currentEditMember = null;
         
     } catch (error) {
-        alert('Error renewing membership: ' + error.message);
+        alert('Error updating member: ' + error.message);
     }
 });
 
@@ -353,48 +423,6 @@ downloadQR.addEventListener('click', function() {
     link.click();
 });
 
-// Close Modals
-closeModal.addEventListener('click', function() {
-    qrModal.style.display = 'none';
-});
-
-closeRenewModal.addEventListener('click', function() {
-    renewModal.style.display = 'none';
-    currentRenewMember = null;
-});
-
-window.addEventListener('click', function(event) {
-    if (event.target === qrModal) {
-        qrModal.style.display = 'none';
-    }
-    if (event.target === renewModal) {
-        renewModal.style.display = 'none';
-        currentRenewMember = null;
-    }
-});
-
-// Renew calculator
-renewPayment.addEventListener('input', function() {
-    const payment = parseInt(this.value) || 0;
-    const calculatedMonths = Math.floor(payment / 500);
-    const maxMonths = 12;
-    
-    if (calculatedMonths > 0) {
-        const months = Math.min(calculatedMonths, maxMonths);
-        renewMonths.value = months;
-        updateRenewDisplay(months, currentRenewMember?.currentRemainingDays || 0);
-    }
-});
-
-renewMonths.addEventListener('input', function() {
-    const months = parseInt(this.value);
-    updateRenewDisplay(months, currentRenewMember?.currentRemainingDays || 0);
-    
-    // Auto-fill payment amount
-    const paymentAmount = months * 500;
-    renewPayment.value = paymentAmount;
-});
-
 // Delete member function
 async function deleteMember(memberKey, name) {
     if (confirm(`Are you sure you want to delete member: ${name}?\nThis action cannot be undone.`)) {
@@ -406,6 +434,26 @@ async function deleteMember(memberKey, name) {
         }
     }
 }
+
+// Close Modals
+closeModal.addEventListener('click', function() {
+    qrModal.style.display = 'none';
+});
+
+closeEditModal.addEventListener('click', function() {
+    editModal.style.display = 'none';
+    currentEditMember = null;
+});
+
+window.addEventListener('click', function(event) {
+    if (event.target === qrModal) {
+        qrModal.style.display = 'none';
+    }
+    if (event.target === editModal) {
+        editModal.style.display = 'none';
+        currentEditMember = null;
+    }
+});
 
 // Event Listeners
 searchBtn.addEventListener('click', searchMembers);
@@ -430,8 +478,5 @@ searchInput.addEventListener('search', function() {
 
 // Make functions global for onclick attributes
 window.showQRModal = showQRModal;
-window.openRenewModal = openRenewModal;
+window.openEditModal = openEditModal;
 window.deleteMember = deleteMember;
-
-// Initialize renew calculator
-updateRenewDisplay(1, 0);

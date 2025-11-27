@@ -564,3 +564,177 @@ td {
 .empty-state a:hover {
     text-decoration: underline;
 }
+
+/* Edit Modal Styles */
+.large-modal {
+    max-width: 600px;
+    max-height: 85vh;
+    overflow-y: auto;
+    margin: 2% auto;
+    width: 95%;
+}
+
+.edit-form {
+    margin-top: 15px;
+}
+
+.edit-form .form-group {
+    margin-bottom: 12px;
+}
+
+.edit-form .form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #333;
+    font-size: 13px;
+}
+
+.edit-form .form-group input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 13px;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+}
+
+.edit-form .form-group input:focus {
+    border-color: #9b4de4d3;
+    outline: none;
+}
+
+.edit-form .form-group input[readonly] {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.edit-form .form-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.edit-form .half-width {
+    flex: 1;
+}
+
+.edit-form .payment-section {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    margin: 15px 0;
+    border-left: 4px solid #9b4de4d3;
+}
+
+.edit-form .payment-section h4 {
+    margin-top: 0;
+    color: #333;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 8px;
+    font-size: 14px;
+}
+
+.edit-form .payment-summary {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 12px;
+}
+
+.edit-form .payment-summary h5 {
+    margin-top: 0;
+    color: #333;
+    font-size: 13px;
+}
+
+.edit-form .payment-summary p {
+    margin: 4px 0;
+    font-size: 12px;
+}
+
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
+
+.modal-buttons .btn {
+    padding: 10px 20px;
+    min-width: 120px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.btn-primary {
+    background: #28a745;
+    color: white;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #218838;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* Make slider more compact */
+.edit-form .slider {
+    margin: 8px 0;
+}
+
+.edit-form .slider-labels {
+    font-size: 11px;
+    margin-top: 3px;
+}
+
+/* Responsive modal */
+@media (max-width: 768px) {
+    .large-modal {
+        max-width: 95%;
+        max-height: 90vh;
+        margin: 1% auto;
+        padding: 15px;
+    }
+    
+    .edit-form .form-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .modal-buttons {
+        flex-direction: column;
+    }
+    
+    .modal-buttons .btn {
+        min-width: 100%;
+    }
+}
+
+/* Compact the modal header */
+.modal-content h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 18px;
+}
+
+/* Reduce padding in modal content */
+.modal-content {
+    padding: 20px;
+}
+
+/* Make the close button more compact */
+.close, .close-edit, .close-renew {
+    font-size: 24px;
+    top: 5px;
+    right: 10px;
+}
