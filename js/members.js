@@ -283,7 +283,7 @@ function createRenewSummary() {
     return summary;
 }
 
-// Confirm renewal - Now extends membership instead of replacing
+// Confirm renewal
 confirmRenew.addEventListener('click', async function() {
     if (!currentRenewMember) return;
     
@@ -300,12 +300,11 @@ confirmRenew.addEventListener('click', async function() {
         const currentMembership = memberData.membership || {};
         let currentEndDate;
         
-        // Calculate new end date based on current end date or today + extension
         if (currentMembership.end_date && currentRemainingDays > 0) {
-            // Extend from current end date
+            
             currentEndDate = new Date(currentMembership.end_date);
         } else {
-            // Start from today (expired or no current membership)
+            
             currentEndDate = new Date();
         }
         

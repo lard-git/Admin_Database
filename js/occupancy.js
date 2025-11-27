@@ -393,7 +393,7 @@ function getActualRemainingDays(member) {
     const today = new Date();
     const remaining = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
     return Math.max(0, remaining);
-}
+}   
 
 // Clear today's activity
 async function clearTodayActivity() {
