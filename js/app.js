@@ -28,6 +28,13 @@ const SelectedMonthsSpan = document.getElementById("selectedMonths");
 const TotalAmountSpan = document.getElementById("totalAmount");
 const qrImg = document.getElementById("qrImg");
 
+// ------------------ PAYMENT DISPLAY FUNCTION (MOVED OUTSIDE) ------------------
+function updatePaymentDisplay(months) {
+    MonthsDisplay.textContent = months + ' month' + (months > 1 ? 's' : '');
+    SelectedMonthsSpan.textContent = months;
+    TotalAmountSpan.textContent = (months * 500).toLocaleString();
+}
+
 // ------------------ PAYMENT CALCULATOR ------------------
 function initializePaymentCalculator() {
     // Update months based on payment
@@ -52,12 +59,6 @@ function initializePaymentCalculator() {
         const paymentAmount = months * 500;
         PaymentInp.value = paymentAmount;
     });
-
-    function updatePaymentDisplay(months) {
-        MonthsDisplay.textContent = months + ' month' + (months > 1 ? 's' : '');
-        SelectedMonthsSpan.textContent = months;
-        TotalAmountSpan.textContent = (months * 500).toLocaleString();
-    }
 
     // Initialize display
     updatePaymentDisplay(1);

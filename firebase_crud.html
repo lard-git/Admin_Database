@@ -7,42 +7,42 @@
     <link rel="stylesheet" href="resources/firebase-crud.css">
 </head>
 <body>
-
-    
     <div class="sidebar">
         <h2>Gym Admin</h2>
         <a href="firebase-crud.html" class="active"> Register Member</a>
         <a href="members.html"> Members List</a>
-        <a href="occupancy.html" > Gym Occupancy</a>
+        <a href="occupancy.html"> Gym Occupancy</a>
     </div>
 
     <div class="content">
         <h1>Register / Edit Member</h1>
         
         <div class="layout-container">
-            
-            <div class="form-section">
-                <div class="form-group">
-                    <label for="FnameInp">First Name</label>
-                    <input type="text" id="FnameInp" placeholder="Enter first name">
+            <div class="form-section compact-form">
+                <!-- Personal Info in 2 columns -->
+                <div class="form-row">
+                    <div class="form-group half-width">
+                        <label for="FnameInp">First Name</label>
+                        <input type="text" id="FnameInp" placeholder="First name">
+                    </div>
+                    <div class="form-group half-width">
+                        <label for="LnameInp">Last Name</label>
+                        <input type="text" id="LnameInp" placeholder="Last name">
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="LnameInp">Last Name</label>
-                    <input type="text" id="LnameInp" placeholder="Enter last name">
+                <div class="form-row">
+                    <div class="form-group half-width">
+                        <label for="MobileInp">Mobile</label>
+                        <input type="text" id="MobileInp" placeholder="Mobile number">
+                    </div>
+                    <div class="form-group half-width">
+                        <label for="UidInp">UID</label>
+                        <input type="text" id="UidInp" placeholder="Auto-generated">
+                    </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="MobileInp">Mobile</label>
-                    <input type="text" id="MobileInp" placeholder="Enter mobile number">
-                </div>
-
-                <div class="form-group">
-                    <label for="UidInp">UID</label>
-                    <input type="text" id="UidInp" placeholder="Auto-generated or enter existing">
-                </div>
-
-               
+                <!-- Payment Section -->
                 <div class="payment-section">
                     <h3>Membership Payment</h3>
                     
@@ -77,7 +77,7 @@
                 </div>
             </div>
 
-            
+            <!-- QR Section -->
             <div class="qr-section">
                 <h3>Member QR Code</h3>
                 <div class="qr-container">
@@ -89,7 +89,5 @@
 
         <script type="module" src="js/app.js"></script>
     </div>
-
-
 </body>
 </html>
