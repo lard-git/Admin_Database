@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gym Analytics - Gym Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="js/analytics.js"></script>
+    <link rel="stylesheet" href="resources/analytics.css">
+</head>
+<body>
+    <div class="sidebar">
+        <h2>Gym Admin</h2>
+        <a href="firebase_crud.html">Register Member</a>
+        <a href="members.html">Members List</a>
+        <a href="occupancy.html">Gym Occupancy</a>
+        <a href="analytics.html" class="active">Analytics</a>
+    </div>
+
+    <div class="content">
+        <div class="page-header">
+            <h1>Gym Analytics Dashboard</h1>
+            <div class="date-range">
+                <select id="timeRange">
+                    <option value="7">Last 7 Days</option>
+                    <option value="30" selected>Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                    <option value="365">Last Year</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <h3>Avg. Daily Visitors</h3>
+                <span id="avgDailyVisitors">0</span>
+            </div>
+            <div class="summary-card">
+                <h3>Peak Hour</h3>
+                <span id="peakHour">--:--</span>
+            </div>
+            <div class="summary-card">
+                <h3>Busiest Day</h3>
+                <span id="busiestDay">--</span>
+            </div>
+            <div class="summary-card">
+                <h3>Avg. Stay Time</h3>
+                <span id="avgStayTime">0m</span>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid">
+            <!-- Hourly Traffic Chart -->
+            <div class="chart-card">
+                <h3>Hourly Crowd Density</h3>
+                <div class="chart-container">
+                    <canvas id="hourlyTrafficChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Daily Traffic Chart -->
+            <div class="chart-card">
+                <h3>Daily Visitors Trend</h3>
+                <div class="chart-container">
+                    <canvas id="dailyTrafficChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Membership Activity -->
+            <div class="chart-card">
+                <h3>Membership Activity</h3>
+                <div class="chart-container">
+                    <canvas id="membershipActivityChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Stats -->
+        <div class="stats-section">
+            <h2>Detailed Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <h4>Top Visiting Members</h4>
+                    <div id="topMembersList" class="stat-list"></div>
+                </div>
+                <div class="stat-box">
+                    <h4>Peak Hours Analysis</h4>
+                    <div id="peakHoursList" class="stat-list"></div>
+                </div>
+                <div class="stat-box">
+                    <h4>Membership Status</h4>
+                    <div id="membershipStats" class="stat-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
