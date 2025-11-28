@@ -199,8 +199,19 @@ function updateSummaryCards(visits, dateCount, stayTimes, days, hourlyCount, dai
         }
     }
     
-    const formattedHour = maxHour < 10 ? `0${maxHour}` : maxHour;
-    peakHour.textContent = maxCount > 0 ? `${formattedHour}:00` : '--:--';
+    // Format peak hour with AM/PM
+    let peakHourFormatted;
+    if (maxHour === 0) {
+        peakHourFormatted = '12 AM';
+    } else if (maxHour === 12) {
+        peakHourFormatted = '12 PM';
+    } else if (maxHour < 12) {
+        peakHourFormatted = `${maxHour} AM`;
+    } else {
+        peakHourFormatted = `${maxHour - 12} PM`;
+    }
+    
+    peakHour.textContent = maxCount > 0 ? peakHourFormatted : '--:--';
 
     const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     let busiestDayIndex = dailyCount.indexOf(Math.max(...dailyCount));
@@ -219,6 +230,7 @@ function updateCharts(hourlyCount, dailyCount, dateCount, members, visits) {
 }
 
 // Hourly Traffic Chart
+// Hourly Traffic Chart
 function updateHourlyTrafficChart(hourlyCount) {
     const ctx = document.getElementById('hourlyTrafficChart').getContext('2d');
     
@@ -226,10 +238,12 @@ function updateHourlyTrafficChart(hourlyCount) {
         hourlyTrafficChart.destroy();
     }
 
+    // Create AM/PM labels
     const labels = Array.from({length: 24}, (_, i) => {
-        const hour = i % 12 || 12;
-        const period = i < 12 ? 'AM' : 'PM';
-        return `${hour}${period}`;
+        if (i === 0) return '12 AM';
+        if (i === 12) return '12 PM';
+        if (i < 12) return `${i} AM`;
+        return `${i - 12} PM`;
     });
 
     const totalVisits = hourlyCount.reduce((a, b) => a + b, 0);
@@ -261,6 +275,10 @@ function updateHourlyTrafficChart(hourlyCount) {
                         title: {
                             display: true,
                             text: 'Time of Day'
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
                         }
                     }
                 },
@@ -306,13 +324,16 @@ function updateHourlyTrafficChart(hourlyCount) {
                     title: {
                         display: true,
                         text: 'Time of Day'
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 45
                     }
                 }
             }
         }
     });
 }
-
 // Daily Traffic Chart
 function updateDailyTrafficChart(dateCount) {
     const ctx = document.getElementById('dailyTrafficChart').getContext('2d');
@@ -496,6 +517,7 @@ function updateDetailedStats(memberStats, hourlyCount, members) {
         `).join('') : 
         '<div class="stat-item">No visits recorded in selected period</div>';
 
+    // Peak hours analysis with AM/PM format
     const peakHours = hourlyCount
         .map((count, hour) => ({ hour, count }))
         .filter(h => h.count > 0)
@@ -504,10 +526,21 @@ function updateDetailedStats(memberStats, hourlyCount, members) {
 
     peakHoursList.innerHTML = peakHours.length > 0 ? 
         peakHours.map(({ hour, count }) => {
-            const formattedHour = hour < 10 ? `0${hour}` : hour;
+            // Format hour with AM/PM
+            let hourFormatted;
+            if (hour === 0) {
+                hourFormatted = '12 AM';
+            } else if (hour === 12) {
+                hourFormatted = '12 PM';
+            } else if (hour < 12) {
+                hourFormatted = `${hour} AM`;
+            } else {
+                hourFormatted = `${hour - 12} PM`;
+            }
+            
             return `
                 <div class="stat-item">
-                    <span>${formattedHour}:00-${formattedHour}:59</span>
+                    <span>${hourFormatted}</span>
                     <span class="value">${count} check-ins</span>
                 </div>
             `;
