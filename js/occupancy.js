@@ -40,10 +40,9 @@ function init() {
     loadMembers();
     focusOnInput();
     
-    // Auto-focus on input field
+
     memberUidInput.focus();
-    
-    // Enter key support
+  
     memberUidInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             handleCheckInOut();
@@ -150,7 +149,7 @@ async function handleCheckInOut() {
         m.gym_data?.uid === uid
     );
     
-    console.log('Found member:', member); // Debug log
+    console.log('Found member:', member);
     
     if (!member) {
         showMessage('Member not found. Please check the UID.', 'error');
@@ -166,7 +165,7 @@ async function handleCheckInOut() {
 
     if (membership.remaining_days !== undefined && membership.remaining_days <= 7) {
         showMessage(`Warning: Membership expires in ${membership.remaining_days} days`, 'warning');
-        // Continue with check-in but show warning
+        //warning
     }
     
     try {
@@ -212,7 +211,7 @@ async function checkInMember(member) {
     showMessage(`${member.firstname} ${member.lastname} checked in successfully! (${membershipStatus})`, 'success');
 }
 
-// Check out member
+// Check out 
 async function checkOutMember(member) {
     const now = new Date();
     const checkOutTime = now.toISOString();
@@ -246,7 +245,7 @@ async function checkOutMember(member) {
     showMessage(`${member.firstname} ${member.lastname} checked out. Time spent: ${timeSpent} minutes (${membershipStatus})`, 'info');
 }
 
-// Get membership status text
+//membership status text
 function getMembershipStatus(membership) {
     if (!membership) return 'No membership';
     
@@ -261,7 +260,7 @@ function getMembershipStatus(membership) {
     }
 }
 
-// Get membership CSS class
+//membership CSS class
 function getMembershipClass(membership) {
     if (!membership) return 'membership-expired';
     
@@ -276,7 +275,7 @@ function getMembershipClass(membership) {
     }
 }
 
-// Get days CSS class
+//days CSS class
 function getDaysClass(remainingDays) {
     if (remainingDays === undefined) return 'days-safe';
     
@@ -352,7 +351,7 @@ function updateTodayActivity() {
         });
     });
     
-    // Sort by check-in time (newest first)
+    // Sort by check-in time 
     allActivities.sort((a, b) => new Date(b.checkin) - new Date(a.checkin));
     todayActivities = allActivities;
     
@@ -406,7 +405,6 @@ async function clearTodayActivity() {
     
     allMembers.forEach(member => {
         if (member.attendance_history && member.attendance_history.length > 0) {
-            // Filter out today's activities
             const filteredHistory = member.attendance_history.filter(visit => {
                 if (visit.checkin) {
                     const visitDate = new Date(visit.checkin).toISOString().split('T')[0];
@@ -457,7 +455,7 @@ function updateStats() {
                (membership.remaining_days === undefined || membership.remaining_days > 0);
     }).length;
     
-    // Calculate peak hours (most check-ins in last hour)
+    // Calculate peak hours 
     const now = new Date();
     const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
     const recentCheckins = todayActivities.filter(activity => 
@@ -507,5 +505,5 @@ memberUidInput.addEventListener('input', function() {
     updateButtonStatus(member);
 });
 
-// Initialize the app
+
 init();

@@ -58,12 +58,14 @@
             <th>UID</th>
             <th>Name</th>
             <th>Phone</th>
+            <th>Membership Type</th>
             <th>Membership Status</th>
             <th>Remaining Days</th>
             <th>Start Date</th>
             <th>End Date</th>
             <th>Payment</th>
             <th>Duration</th>
+            <th>Monthly Rate</th>
             <th>QR Code</th>
             <th>Actions</th>
           </tr>
@@ -78,7 +80,7 @@
       </div>
     </div>
 
-    <!-- QR Modal -->
+   
     <div id="qrModal" class="modal">
       <div class="modal-content">
         <span class="close">&times;</span>
@@ -89,7 +91,7 @@
       </div>
     </div>
 
-    <!-- Edit Member Modal -->
+   
     <div id="editModal" class="modal">
       <div class="modal-content large-modal">
         <span class="close-edit">&times;</span>
@@ -118,18 +120,29 @@
             </div>
           </div>
 
-          <!-- Updated Payment Section -->
+         
           <div class="payment-section">
             <h4>Extend Membership</h4>
             
             <div class="current-membership-info">
+              <p><strong>Current Type:</strong> <span id="currentMembershipTypeDisplay">Regular</span></p>
+              <p><strong>Current Monthly Rate:</strong> ₱<span id="currentMonthlyRateDisplay">800</span></p>
               <p><strong>Current:</strong> <span id="currentDaysDisplay">0</span> days remaining</p>
               <p><strong>Paid:</strong> ₱<span id="currentPaymentDisplay">0</span> for <span id="currentMonthsDisplay">0</span> months</p>
             </div>
             
+           
+            <div class="form-group">
+              <label for="editMembershipType">Extension Membership Type</label>
+              <select id="editMembershipType" class="membership-type-select">
+                <option value="student" data-price="600">Student - ₱600/month</option>
+                <option value="regular" data-price="800" selected>Regular - ₱800/month</option>
+              </select>
+            </div>
+            
             <div class="form-group">
               <label for="editPayment">Additional Payment (₱)</label>
-              <input type="number" id="editPayment" placeholder="500 per month" min="500" step="500">
+              <input type="number" id="editPayment" placeholder="800 per month" min="600" step="100">
             </div>
 
             <div class="form-group">
@@ -144,7 +157,9 @@
 
             <div class="payment-summary">
               <h5>Extension Summary</h5>
-              <p>Additional Payment: ₱<span id="editTotalAmount">500</span></p>
+              <p>Extension Type: <span id="editMembershipTypeDisplay">Regular</span></p>
+              <p>Monthly Rate: ₱<span id="editMonthlyRateDisplay">800</span></p>
+              <p>Additional Payment: ₱<span id="editTotalAmount">800</span></p>
               <p>Additional Months: <span id="editSelectedMonths">1</span></p>
               <p class="total-amount">New Total: ₱<span id="newTotalPayment">0</span> for <span id="newTotalMonths">0</span> months</p>
             </div>

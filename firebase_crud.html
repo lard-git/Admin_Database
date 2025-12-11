@@ -20,7 +20,7 @@
         
         <div class="layout-container">
             <div class="form-section compact-form">
-                <!-- Personal Info in 2 columns -->
+                
                 <div class="form-row">
                     <div class="form-group half-width">
                         <label for="FnameInp">First Name</label>
@@ -43,13 +43,22 @@
                     </div>
                 </div>
 
-                <!-- Payment Section -->
+               
                 <div class="payment-section">
                     <h3>Membership Payment</h3>
                     
+                    
+                    <div class="form-group">
+                        <label for="membershipType">Membership Type</label>
+                        <select id="membershipType" class="membership-type-select">
+                            <option value="student" data-price="600">Student - ₱600/month</option>
+                            <option value="regular" data-price="800" selected>Regular - ₱800/month</option>
+                        </select>
+                    </div>
+                    
                     <div class="form-group">
                         <label for="PaymentInp">Payment Amount (₱)</label>
-                        <input type="number" id="PaymentInp" placeholder="500 per month" min="500" step="500">
+                        <input type="number" id="PaymentInp" placeholder="800 per month" min="600" step="100">
                     </div>
 
                     <div class="form-group">
@@ -64,9 +73,10 @@
 
                     <div class="payment-summary">
                         <h4>Payment Summary</h4>
-                        <p>Monthly Rate: ₱500</p>
+                        <p>Membership Type: <span id="membershipTypeDisplay">Regular</span></p>
+                        <p>Monthly Rate: ₱<span id="monthlyRateDisplay">800</span></p>
                         <p>Selected Months: <span id="selectedMonths">1</span></p>
-                        <p class="total-amount">Total Amount: ₱<span id="totalAmount">500</span></p>
+                        <p class="total-amount">Total Amount: ₱<span id="totalAmount">800</span></p>
                     </div>
                 </div>
 
@@ -75,7 +85,7 @@
                 </div>
             </div>
 
-            <!-- QR Section -->
+           
             <div class="qr-section">
                 <h3>Member QR Code</h3>
                 <div class="qr-container">

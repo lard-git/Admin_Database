@@ -1,4 +1,4 @@
-// ------------------ Firebase Setup ------------------
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import { getDatabase, ref, set, get, update, remove } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-database.js";
 
@@ -16,7 +16,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase();
 
-// ------------------ DOM ELEMENTS ------------------
+//dom elem
 const FnameInp = document.getElementById("FnameInp");
 const LnameInp = document.getElementById("LnameInp");
 const MobileInp = document.getElementById("MobileInp");
@@ -28,19 +28,56 @@ const SelectedMonthsSpan = document.getElementById("selectedMonths");
 const TotalAmountSpan = document.getElementById("totalAmount");
 const qrImg = document.getElementById("qrImg");
 
-// ------------------ PAYMENT DISPLAY FUNCTION (MOVED OUTSIDE) ------------------
 function updatePaymentDisplay(months) {
+    const currentPrice = getCurrentPrice();
     MonthsDisplay.textContent = months + ' month' + (months > 1 ? 's' : '');
     SelectedMonthsSpan.textContent = months;
-    TotalAmountSpan.textContent = (months * 500).toLocaleString();
+    TotalAmountSpan.textContent = (months * currentPrice).toLocaleString();
 }
 
-// ------------------ PAYMENT CALCULATOR ------------------
+
+function getCurrentPrice() {
+    const membershipTypeSelect = document.getElementById('membershipType');
+    const selectedOption = membershipTypeSelect.options[membershipTypeSelect.selectedIndex];
+    return parseInt(selectedOption.getAttribute('data-price'));
+}
+
+//payment
 function initializePaymentCalculator() {
-    // Update months based on payment
+    const membershipTypeSelect = document.getElementById('membershipType');
+    const monthlyRateDisplay = document.getElementById('monthlyRateDisplay');
+    const membershipTypeDisplay = document.getElementById('membershipTypeDisplay');
+    
+    
+    function getCurrentPrice() {
+        const selectedOption = membershipTypeSelect.options[membershipTypeSelect.selectedIndex];
+        return parseInt(selectedOption.getAttribute('data-price'));
+    }
+    
+    // student/normal
+    membershipTypeSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const price = selectedOption.getAttribute('data-price');
+        const typeText = selectedOption.text.split(' - ')[0];
+        
+        monthlyRateDisplay.textContent = price;
+        membershipTypeDisplay.textContent = typeText;
+        
+        
+        PaymentInp.min = price;
+        PaymentInp.step = price;
+        PaymentInp.placeholder = `${price} per month`;
+        
+        
+        const months = parseInt(MonthsSlider.value);
+        updatePaymentDisplay(months);
+    });
+    
+    //months based on payment
     PaymentInp.addEventListener('input', function() {
         const payment = parseInt(this.value) || 0;
-        const calculatedMonths = Math.floor(payment / 500);
+        const currentPrice = getCurrentPrice();
+        const calculatedMonths = Math.floor(payment / currentPrice);
         const maxMonths = 12;
         
         if (calculatedMonths > 0) {
@@ -49,22 +86,21 @@ function initializePaymentCalculator() {
             updatePaymentDisplay(months);
         }
     });
-
-    // Update payment based on months
+    
+  
     MonthsSlider.addEventListener('input', function() {
         const months = parseInt(this.value);
         updatePaymentDisplay(months);
         
-        // Auto-fill payment amount
-        const paymentAmount = months * 500;
+       
+        const currentPrice = getCurrentPrice();
+        const paymentAmount = months * currentPrice;
         PaymentInp.value = paymentAmount;
     });
-
-    // Initialize display
+    
     updatePaymentDisplay(1);
 }
 
-// ------------------ FORM VALIDATION ------------------
 function validateForm() {
     if (!FnameInp.value.trim() || !LnameInp.value.trim()) {
         alert("Please enter both first and last name");
@@ -76,8 +112,9 @@ function validateForm() {
         return false;
     }
 
-    if (!PaymentInp.value.trim() || parseInt(PaymentInp.value) < 500) {
-        alert("Please enter payment amount (minimum ₱500)");
+    const currentPrice = getCurrentPrice();
+    if (!PaymentInp.value.trim() || parseInt(PaymentInp.value) < currentPrice) {
+        alert(`Please enter payment amount (minimum ₱${currentPrice})`);
         return false;
     }
     
@@ -96,7 +133,7 @@ function clearForm() {
     qrImg.alt = "QR Code will appear here";
 }
 
-// ------------------ UID GENERATION ------------------
+
 function random8Digit() {
     return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
@@ -110,14 +147,14 @@ async function generateUniqueUID() {
     throw new Error("Could not generate unique UID");
 }
 
-// ------------------ QR CODE ------------------
+
 function generateQR(uid) {
     const payload = encodeURIComponent(uid);
     qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${payload}`;
     qrImg.alt = `QR Code for Member ID: ${uid}`;
 }
 
-// ------------------ CRUD OPERATIONS ------------------
+//crud
 async function AddData() {
     if (!validateForm()) return;
     
@@ -125,10 +162,12 @@ async function AddData() {
         const newUID = await generateUniqueUID();
         UidInp.value = newUID;
 
-        const paymentAmount = parseInt(PaymentInp.value) || 500;
+        const paymentAmount = parseInt(PaymentInp.value) || getCurrentPrice();
         const selectedMonths = parseInt(MonthsSlider.value) || 1;
+        const membershipType = document.getElementById('membershipType').value;
+        const membershipTypeText = document.getElementById('membershipType').options[document.getElementById('membershipType').selectedIndex].text.split(' - ')[0];
         
-        // Calculate dates
+       //date
         const startDate = new Date();
         const endDate = new Date();
         endDate.setMonth(endDate.getMonth() + selectedMonths);
@@ -141,11 +180,14 @@ async function AddData() {
             personal_info: {
                 firstname: FnameInp.value.trim(),
                 lastname: LnameInp.value.trim(),
-                phone: MobileInp.value.trim()
+                phone: MobileInp.value.trim(),
+                membership_type: membershipType  
             },
             membership: {
                 status: "active",
-                plan: "standard",
+                plan: membershipType,           
+                plan_display: membershipTypeText, 
+                monthly_rate: getCurrentPrice(),  
                 payment_amount: paymentAmount,
                 months_paid: selectedMonths,
                 start_date: startDateStr,
@@ -162,7 +204,7 @@ async function AddData() {
             attendance_history: []
         });
 
-        alert(`Member Added Successfully!\nPayment: ₱${paymentAmount}\nDuration: ${selectedMonths} month(s)\nRemaining Days: ${remainingDays}`);
+        alert(`Member Added Successfully!\nType: ${membershipTypeText}\nMonthly Rate: ₱${getCurrentPrice()}\nPayment: ₱${paymentAmount}\nDuration: ${selectedMonths} month(s)\nRemaining Days: ${remainingDays}`);
         generateQR(newUID);
 
     } catch (err) {
@@ -185,12 +227,12 @@ async function ReadData() {
 
         const data = snap.val();
         
-        // Fill form with member data
+        
         FnameInp.value = data.personal_info?.firstname || "";
         LnameInp.value = data.personal_info?.lastname || "";
         MobileInp.value = data.personal_info?.phone || "";
         
-        // Fill payment data
+        //payment data
         if (data.membership) {
             PaymentInp.value = data.membership.payment_amount || 500;
             const months = data.membership.months_paid || 1;
@@ -217,7 +259,7 @@ async function UpdateData() {
         const paymentAmount = parseInt(PaymentInp.value) || 500;
         const selectedMonths = parseInt(MonthsSlider.value) || 1;
         
-        // Calculate new dates
+        //dates
         const startDate = new Date();
         const endDate = new Date();
         endDate.setMonth(endDate.getMonth() + selectedMonths);
@@ -264,18 +306,16 @@ async function DeleteData() {
     }
 }
 
-// ------------------ INITIALIZATION ------------------
+//intialization
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize payment calculator
+    
     initializePaymentCalculator();
     
-    // Set up button events
     document.getElementById("AddBtn").onclick = AddData;
     document.getElementById("ReadBtn").onclick = ReadData;
     document.getElementById("UpdateBtn").onclick = UpdateData;
     document.getElementById("DeleteBtn").onclick = DeleteData;
 
-    // Enter key support
     [FnameInp, LnameInp, MobileInp, UidInp, PaymentInp].forEach(input => {
         input.addEventListener("keypress", function(event) {
             if (event.key === "Enter") {

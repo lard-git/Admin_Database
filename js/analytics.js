@@ -15,7 +15,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// DOM Elements
+
 const timeRange = document.getElementById('timeRange');
 const avgDailyVisitors = document.getElementById('avgDailyVisitors');
 const peakHour = document.getElementById('peakHour');
@@ -25,17 +25,17 @@ const topMembersList = document.getElementById('topMembersList');
 const peakHoursList = document.getElementById('peakHoursList');
 const membershipStats = document.getElementById('membershipStats');
 
-// Charts
+
 let hourlyTrafficChart, dailyTrafficChart, membershipActivityChart;
 
-// Initialize
+
 function init() {
     loadAnalyticsData();
     
     timeRange.addEventListener('change', loadAnalyticsData);
 }
 
-// Load and process analytics data
+
 async function loadAnalyticsData() {
     const days = parseInt(timeRange.value);
     const membersRef = ref(db, 'Customers');
@@ -63,7 +63,7 @@ async function loadAnalyticsData() {
     }
 }
 
-// Normalize member data
+//normalization
 function normalizeMemberData(key, data) {
     const uid = data.gym_data?.uid || 
                 data.personal_info?.uid || 
@@ -116,7 +116,7 @@ function normalizeMemberData(key, data) {
     };
 }
 
-// Process analytics data
+//analytics
 function processAnalytics(members, days) {
     const endDate = new Date();
     const startDate = new Date();
@@ -199,7 +199,7 @@ function updateSummaryCards(visits, dateCount, stayTimes, days, hourlyCount, dai
         }
     }
     
-    // Format peak hour with AM/PM
+    //peakhours
     let peakHourFormatted;
     if (maxHour === 0) {
         peakHourFormatted = '12 AM';
@@ -229,8 +229,7 @@ function updateCharts(hourlyCount, dailyCount, dateCount, members, visits) {
     updateMembershipActivityChart(members, visits);
 }
 
-// Hourly Traffic Chart
-// Hourly Traffic Chart
+
 function updateHourlyTrafficChart(hourlyCount) {
     const ctx = document.getElementById('hourlyTrafficChart').getContext('2d');
     
@@ -238,7 +237,7 @@ function updateHourlyTrafficChart(hourlyCount) {
         hourlyTrafficChart.destroy();
     }
 
-    // Create AM/PM labels
+    //am-pm
     const labels = Array.from({length: 24}, (_, i) => {
         if (i === 0) return '12 AM';
         if (i === 12) return '12 PM';
@@ -334,7 +333,7 @@ function updateHourlyTrafficChart(hourlyCount) {
         }
     });
 }
-// Daily Traffic Chart
+//dailytraficchart
 function updateDailyTrafficChart(dateCount) {
     const ctx = document.getElementById('dailyTrafficChart').getContext('2d');
     
@@ -417,7 +416,7 @@ function updateDailyTrafficChart(dateCount) {
     });
 }
 
-// Membership Activity Chart
+// piechart
 function updateMembershipActivityChart(members, visits) {
     const ctx = document.getElementById('membershipActivityChart').getContext('2d');
     
@@ -501,7 +500,7 @@ function updateMembershipActivityChart(members, visits) {
     });
 }
 
-// Update detailed stats
+//updatething
 function updateDetailedStats(memberStats, hourlyCount, members) {
     const topMembers = Object.values(memberStats)
         .filter(m => m.visits > 0)
@@ -517,7 +516,7 @@ function updateDetailedStats(memberStats, hourlyCount, members) {
         `).join('') : 
         '<div class="stat-item">No visits recorded in selected period</div>';
 
-    // Peak hours analysis with AM/PM format
+            //am-pm
     const peakHours = hourlyCount
         .map((count, hour) => ({ hour, count }))
         .filter(h => h.count > 0)
@@ -526,7 +525,7 @@ function updateDetailedStats(memberStats, hourlyCount, members) {
 
     peakHoursList.innerHTML = peakHours.length > 0 ? 
         peakHours.map(({ hour, count }) => {
-            // Format hour with AM/PM
+            
             let hourFormatted;
             if (hour === 0) {
                 hourFormatted = '12 AM';
@@ -573,7 +572,7 @@ function updateDetailedStats(memberStats, hourlyCount, members) {
     `;
 }
 
-// Show empty state when no data
+
 function showEmptyState() {
     avgDailyVisitors.textContent = '0';
     peakHour.textContent = '--:--';
@@ -584,11 +583,10 @@ function showEmptyState() {
     peakHoursList.innerHTML = '<div class="stat-item">No data available</div>';
     membershipStats.innerHTML = '<div class="stat-item">No data available</div>';
     
-    // Initialize empty charts
     updateHourlyTrafficChart(Array(24).fill(0));
     updateDailyTrafficChart({});
     updateMembershipActivityChart([], []);
 }
 
-// Initialize the analytics dashboard
+
 init();

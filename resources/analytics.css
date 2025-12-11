@@ -55,7 +55,6 @@ body {
     min-height: 100vh;
 }
 
-/* Page Header */
 .page-header {
     display: flex;
     justify-content: space-between;
@@ -79,7 +78,7 @@ body {
     background: white;
 }
 
-/* Summary Cards */
+
 .summary-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -195,7 +194,6 @@ body {
     color: #9b4de4d3;
 }
 
-/* Responsive */
 @media (max-width: 1200px) {
     .charts-grid {
         grid-template-columns: 1fr;
@@ -228,13 +226,12 @@ body {
     }
 }
 
-/* Loading State */
 .loading {
     opacity: 0.6;
     pointer-events: none;
 }
 
-/* Chart specific styles */
+
 .chart-legend {
     display: flex;
     justify-content: center;
@@ -256,7 +253,7 @@ body {
     border-radius: 2px;
 }
 
-/* Enhanced Membership Charts */
+
 .membership-charts-container {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -269,17 +266,16 @@ body {
     height: 100%;
 }
 
-/* Revenue specific styles */
+
 .revenue-high { color: #28a745; font-weight: bold; }
 .revenue-medium { color: #ffc107; font-weight: bold; }
 .revenue-low { color: #dc3545; font-weight: bold; }
 
-/* Membership status badges */
+
 .status-active { background: #d4edda; color: #155724; }
 .status-warning { background: #fff3cd; color: #856404; }
 .status-expired { background: #f8d7da; color: #721c24; }
 
-/* Chart legends */
 .chart-legend {
     display: flex;
     flex-direction: column;
@@ -300,7 +296,7 @@ body {
     border-radius: 2px;
 }
 
-/* Responsive design for membership charts */
+
 @media (max-width: 1200px) {
     .membership-charts-container {
         grid-template-columns: 1fr;
