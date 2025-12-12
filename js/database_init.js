@@ -14,3 +14,8 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
+window.db = db;
+window.firebaseMod = { getDatabase, ref, set, get, update, remove };
+
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-functions.js";
+window.firebaseFunctions = { getFunctions, httpsCallable };

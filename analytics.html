@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -32,6 +33,16 @@
 
         
         <div class="summary-cards">
+            <div class="summary-card ai">
+                 <h3>Next-Hour Forecast</h3>
+                 <span id="aiNextHour" style="font-size:32px;">—</span>
+            <small id="aiConfidence" style="color:#666;">confidence —</small>
+            </div>
+
+              <div class="summary-card">
+                <h3>7-Day Growth</h3>
+                <span id="growthText" style="font-size:28px;">—</span>
+            </div>
             <div class="summary-card">
                 <h3>Avg. Daily Visitors</h3>
                 <span id="avgDailyVisitors">0</span>
@@ -48,6 +59,8 @@
                 <h3>Avg. Stay Time</h3>
                 <span id="avgStayTime">0m</span>
             </div>
+        
+          
         </div>
 
        
@@ -95,5 +108,18 @@
             </div>
         </div>
     </div>
+
+    
+    <script type="module">
+      import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+      import { db } from './js/database_init.js';
+      
+      onValue(ref(db, 'WeeklyGrowthRate'), s => {
+        const pct = s.val()?.pct ?? 0;
+        document.getElementById('growthText').textContent = (pct > 0 ? '+' : '') + pct + '%';
+        document.getElementById('growthText').style.color = pct > 0 ? '#28a745' : '#dc3545';
+      });
+    </script>
+</script>
 </body>
 </html>

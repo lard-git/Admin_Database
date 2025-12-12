@@ -581,52 +581,22 @@ async function deleteMember(memberKey, name) {
 // Search functionality
 function searchMembers() {
     const searchTerm = searchInput.value.toLowerCase().trim();
-    
     if (!searchTerm) {
         renderMembers(allMembers);
-        updateSummaryCards(allMembers, totalMonthlyRevenue);
-        return;
+        return;   // totals stay global
     }
-    
-    const filteredMembers = allMembers.filter(member => {
+    const filtered = allMembers.filter(member => {
         const fullName = `${member.firstname} ${member.lastname}`.toLowerCase();
         const uid = (member.uid || '').toString().toLowerCase();
         const phone = (member.phone || '').toString().toLowerCase();
-        const firstname = (member.firstname || '').toLowerCase();
-        const lastname = (member.lastname || '').toLowerCase();
-        
         return uid.includes(searchTerm) ||
                fullName.includes(searchTerm) ||
-               firstname.includes(searchTerm) ||
-               lastname.includes(searchTerm) ||
+               member.firstname.toLowerCase().includes(searchTerm) ||
+               member.lastname.toLowerCase().includes(searchTerm) ||
                phone.includes(searchTerm);
     });
+    renderMembers(filtered);
     
-    renderMembers(filteredMembers);
-    
-    
-    const active = filteredMembers.filter(m => {
-        const status = m.membership.status;
-        const remainingDays = m.membership.remaining_days;
-        return status === 'active' && remainingDays > 7;
-    }).length;
-    
-    const expiring = filteredMembers.filter(m => {
-        const status = m.membership.status;
-        const remainingDays = m.membership.remaining_days;
-        return status === 'active' && remainingDays <= 7 && remainingDays > 0;
-    }).length;
-    
-    const expired = filteredMembers.filter(m => {
-        const status = m.membership.status;
-        const remainingDays = m.membership.remaining_days;
-        return status === 'expired' || remainingDays <= 0;
-    }).length;
-    
-    if (memberCount) memberCount.textContent = filteredMembers.length;
-    if (activeCount) activeCount.textContent = active;
-    if (expiringCount) expiringCount.textContent = expiring;
-    if (expiredCount) expiredCount.textContent = expired;
 }
 
 window.showQRModal = showQRModal;

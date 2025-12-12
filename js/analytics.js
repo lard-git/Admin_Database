@@ -1,5 +1,5 @@
 import { db } from './database_init.js';
-import { getDatabase, ref, set, get, update, remove} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { getDatabase, ref, set, get, update, remove, onValue} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
 
 const timeRange = document.getElementById('timeRange');
@@ -573,6 +573,15 @@ function showEmptyState() {
     updateDailyTrafficChart({});
     updateMembershipActivityChart([], []);
 }
+
+
+
+onValue(ref(db, 'Trend24h'), snap => {
+  const d = snap.val() || {};
+  document.getElementById('aiNextHour').textContent = d.nextHour ?? '—';
+  document.getElementById('aiConfidence').textContent =
+     (d.confidence ? Math.round(d.confidence*100)+'%' : '—');
+});
 
 
 init();

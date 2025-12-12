@@ -168,5 +168,32 @@
 <body>
     <h1>Generate Sample Gym Data</h1>
     <p>This will create 10 sample members with 30 days of attendance history.</p>
+
+    <button id="seedAI" style="padding:12px; background:#9b4de4d3; color:#fff; border:none; border-radius:5px; margin:10px;">
+  Seed 24h AI Forecast
+</button>
+
+<script type="module">
+import {db} from './js/database_init.js';
+import {set, ref} from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js';
+
+document.getElementById('seedAI').onclick = async () => {
+  const hours = {};
+  for (let h = 0; h < 24; h++) {
+    hours[h] = {
+      nextHour: Math.floor(Math.random() * 30 + 5),
+      confidence: +(Math.random() * 0.4 + 0.6).toFixed(2)
+    };
+  }
+  // write both the full day and the “current” slot the card reads
+  const now = new Date().getHours();
+  await set(ref(db, 'Trend24h'), {
+    ...hours,
+    nextHour: hours[now].nextHour,
+    confidence: hours[now].confidence
+  });
+  alert('AI forecast seeded 🪄 Reload analytics to peep the numbers.');
+};
+</script>
 </body>
 </html>
