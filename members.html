@@ -1,3 +1,25 @@
+<script type="module">
+  import { db } from './js/database_init.js';
+  import { AUTH } from './js/auth.js';
+
+  if (sessionStorage.getItem('gym_admin') === 'yes') {
+    document.getElementById('authOverlay').style.display = 'none';
+  } else {
+    document.getElementById('loginBtn').onclick = async () => {
+      const ok = await AUTH.login(document.getElementById('pwdInp').value);
+      if (ok) {
+        document.getElementById('authOverlay').style.display = 'none';
+      } else {
+        document.getElementById('authErr').textContent = 'Wrong password';
+      }
+    };
+
+    document.getElementById('pwdInp').addEventListener('keypress', e => {
+      if (e.key === 'Enter') document.getElementById('loginBtn').click();
+    });
+  }
+</script>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,6 +30,14 @@
   <link rel="stylesheet" href="resources/members.css">
 </head>
 <body>
+  <div id="authOverlay">
+        <div id="authBox">
+            <h3>Admin Login</h3>
+            <input id="pwdInp" type="password" placeholder="Enter password" autocomplete="off">
+            <button id="loginBtn">Unlock</button>
+            <div class="error" id="authErr"></div>
+        </div>
+    </div>
 
   <div class="sidebar">
     <h2>Gym Admin</h2>
@@ -15,6 +45,14 @@
     <a href="members.html" class="active"> Members List</a>
     <a href="occupancy.html"> Gym Occupancy</a>
     <a href="analytics.html" >Analytics</a>
+    <a href="#" id="logout">Logout</a>
+        <script type="module">
+          import { AUTH } from './js/auth.js';
+          document.getElementById('logout').onclick = e => {
+            e.preventDefault();
+            AUTH.logout();
+          };
+</script>
   </div>
 
   <div class="content">

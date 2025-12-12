@@ -1,3 +1,49 @@
+#authOverlay {
+    position: fixed;
+    inset: 0;
+    left: 220px;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+#authBox {
+    background: #fff;
+    padding: 25px 30px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+#authBox input {
+    width: 220px;
+    padding: 10px;
+    margin: 8px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#authBox button {
+    padding: 10px 20px;
+    background: #9b4de4d3;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#authBox button:hover {
+    background: #7a37c4;
+}
+
+#authBox .error {
+    color: #dc3545;
+    font-size: 14px;
+    margin-top: 8px;
+}
+
 body {
     margin: 0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
