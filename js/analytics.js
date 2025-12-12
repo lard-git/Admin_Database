@@ -416,7 +416,7 @@ function updateDailyTrafficChart(dateCount) {
     });
 }
 
-// piechart
+// piechartxd
 function updateMembershipActivityChart(members, visits) {
     const ctx = document.getElementById('membershipActivityChart').getContext('2d');
     
