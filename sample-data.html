@@ -3,11 +3,336 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generate Sample Data</title>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
-        import { getDatabase, ref, set, update } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+    <title>Generate Band Pattern Data</title>
+    <!-- Use Firebase compat version -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 700px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .pattern-selector {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 2px solid #e9ecef;
+        }
+        
+        .pattern-option {
+            margin: 15px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #dee2e6;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .pattern-option:hover {
+            border-color: #2196f3;
+            transform: translateY(-2px);
+        }
+        
+        .pattern-option.selected {
+            border-color: #2196f3;
+            background: #e7f3ff;
+        }
+        
+        .pattern-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .pattern-desc {
+            color: #666;
+            font-size: 0.9em;
+            margin-left: 30px;
+        }
+        
+        .stats-preview {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2196f3;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 18px 30px;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            margin: 20px 0;
+            width: 100%;
+            font-weight: bold;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .progress {
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        .log {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .log-entry {
+            margin: 3px 0;
+            padding: 2px;
+            line-height: 1.4;
+        }
+        
+        .log-time {
+            color: #888;
+        }
+        
+        .log-success {
+            color: #4caf50;
+        }
+        
+        .log-warning {
+            color: #ff9800;
+        }
+        
+        .log-error {
+            color: #f44336;
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 20px 25px;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.5s ease;
+            z-index: 1000;
+            max-width: 400px;
+        }
+        
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .notification.success {
+            background: linear-gradient(135deg, #4caf50, #2e7d32);
+        }
+        
+        .notification.error {
+            background: linear-gradient(135deg, #f44336, #c62828);
+        }
+        
+        .hourly-preview {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .hourly-preview h4 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .hourly-bars {
+            display: flex;
+            height: 100px;
+            align-items: flex-end;
+            gap: 2px;
+            margin-top: 10px;
+        }
+        
+        .hour-bar {
+            flex: 1;
+            background: #2196f3;
+            border-radius: 3px 3px 0 0;
+            transition: height 0.5s;
+        }
+        
+        .morning-bar {
+            background: #4caf50;
+        }
+        
+        .evening-bar {
+            background: #ff9800;
+        }
+        
+        .lunch-bar {
+            background: #9c27b0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Generate Band Pattern Test Data</h1>
+        <div class="subtitle">Create distinct patterns to test hourly predictions & weekly growth</div>
+        
+        <div class="pattern-selector">
+            <h3>Select Pattern Type:</h3>
+            
+            <div class="pattern-option" data-pattern="double-peak" onclick="selectPattern('double-peak')">
+                <div class="pattern-title">📈 Double Peak Pattern</div>
+                <div class="pattern-desc">Strong morning (7-9am) & evening (5-8pm) peaks, +15% weekly growth</div>
+            </div>
+            
+            <div class="pattern-option" data-pattern="evening-heavy" onclick="selectPattern('evening-heavy')">
+                <div class="pattern-title">🌙 Evening Heavy Pattern</div>
+                <div class="pattern-desc">Massive evening rush (5-10pm), stable +5% weekly growth</div>
+            </div>
+            
+            <div class="pattern-option" data-pattern="morning-rush" onclick="selectPattern('morning-rush')">
+                <div class="pattern-title">🌅 Morning Rush Pattern</div>
+                <div class="pattern-desc">Intense morning traffic (5-10am), declining -8% weekly growth</div>
+            </div>
+            
+            <div class="pattern-option" data-pattern="weekend-warrior" onclick="selectPattern('weekend-warrior')">
+                <div class="pattern-title">🏋️ Weekend Warrior Pattern</div>
+                <div class="pattern-desc">Weekend spikes, erratic +25%/-10% weekly growth swings</div>
+            </div>
+        </div>
+        
+        <div class="stats-preview">
+            <h3>Expected Results:</h3>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value" id="previewMembers">40</div>
+                    <div class="stat-label">Active Members</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="previewVisits">0</div>
+                    <div class="stat-label">Daily Visits</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="previewPeak">--</div>
+                    <div class="stat-label">Peak Hour</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="previewGrowth">--%</div>
+                    <div class="stat-label">Weekly Growth</div>
+                </div>
+            </div>
+            
+            <div class="hourly-preview">
+                <h4>Hourly Distribution Preview:</h4>
+                <div class="hourly-bars" id="hourlyPreview"></div>
+            </div>
+        </div>
+        
+        <button id="generateBtn">
+            <span>🚀 Generate Test Data</span>
+        </button>
+        
+        <div class="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
 
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyB6x0Si8OoiD3UDDMjXgZTMOdfv8neMtik",
             authDomain: "gym-database-f4b61.firebaseapp.com",
@@ -18,182 +343,416 @@
             appId: "1:79575587778:web:55b218534fde16847ad45b",
             measurementId: "G-BGPJNP62J5"
         };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        // Sample member names
-        const sampleNames = [
-            { first: "John", last: "Smith" },
-            { first: "Maria", last: "Garcia" },
-            { first: "David", last: "Johnson" },
-            { first: "Sarah", last: "Williams" },
-            { first: "James", last: "Brown" },
-            { first: "Lisa", last: "Davis" },
-            { first: "Michael", last: "Miller" },
-            { first: "Emily", last: "Wilson" },
-            { first: "Robert", last: "Moore" },
-            { first: "Jennifer", last: "Taylor" }
+        
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        // DOM elements
+        const generateBtn = document.getElementById('generateBtn');
+        const progressBar = document.getElementById('progressBar');
+        const logDiv = document.getElementById('log');
+        const notification = document.getElementById('notification');
+        const previewVisits = document.getElementById('previewVisits');
+        const previewPeak = document.getElementById('previewPeak');
+        const previewGrowth = document.getElementById('previewGrowth');
+        const hourlyPreview = document.getElementById('hourlyPreview');
+        
+        // Pattern data
+        const patterns = {
+            'double-peak': {
+                name: 'Double Peak',
+                hourlyMultipliers: [1, 1, 1, 1, 2, 5, 8, 10, 9, 6, 4, 5, 6, 4, 3, 4, 6, 9, 12, 10, 7, 5, 3, 2],
+                weeklyGrowth: 15,
+                peakHour: '7-9am & 6-8pm',
+                description: 'Strong morning and evening peaks'
+            },
+            'evening-heavy': {
+                name: 'Evening Heavy',
+                hourlyMultipliers: [1, 1, 1, 1, 2, 3, 4, 5, 4, 3, 4, 5, 6, 5, 4, 5, 8, 12, 15, 14, 10, 6, 3, 2],
+                weeklyGrowth: 5,
+                peakHour: '6-10pm',
+                description: 'Massive evening rush hours'
+            },
+            'morning-rush': {
+                name: 'Morning Rush',
+                hourlyMultipliers: [2, 2, 3, 4, 6, 9, 12, 14, 10, 7, 5, 6, 5, 4, 3, 3, 4, 5, 6, 5, 4, 3, 2, 2],
+                weeklyGrowth: -8,
+                peakHour: '5-10am',
+                description: 'Intense morning traffic'
+            },
+            'weekend-warrior': {
+                name: 'Weekend Warrior',
+                hourlyMultipliers: [1, 1, 1, 1, 2, 4, 6, 8, 7, 5, 6, 8, 9, 7, 5, 6, 9, 11, 10, 8, 6, 4, 2, 1],
+                weeklyGrowth: '±15',
+                peakHour: 'Weekends',
+                description: 'Weekend spikes, erratic growth'
+            }
+        };
+        
+        let selectedPattern = 'double-peak';
+        
+        // Member names
+        const firstNames = [
+            'Alex', 'Jordan', 'Taylor', 'Casey', 'Morgan', 'Riley', 'Avery', 'Quinn',
+            'Blake', 'Dakota', 'Emerson', 'Finley', 'Harley', 'Justice', 'Kai', 'Phoenix',
+            'Rowan', 'Sage', 'Skyler', 'Spencer', 'Charlie', 'Drew', 'Eden', 'Elliot',
+            'Frankie', 'Gray', 'Harper', 'Jules', 'Kelly', 'Lane', 'Marley', 'Max',
+            'Nico', 'Oakley', 'Peyton', 'Reese', 'River', 'Rory', 'Salem', 'Shiloh'
         ];
-
-        // Sample phone numbers
-        const samplePhones = [
-            "09171234567", "09172345678", "09173456789", "09174567890",
-            "09175678901", "09176789012", "09177890123", "09178901234",
-            "09179012345", "09170123456"
+        
+        const lastNames = [
+            'Anderson', 'Baker', 'Carter', 'Davis', 'Edwards', 'Foster', 'Graham', 'Harris',
+            'Irwin', 'Johnson', 'Keller', 'Lawson', 'Miller', 'Nelson', 'Owens', 'Parker',
+            'Quinn', 'Roberts', 'Simpson', 'Thompson', 'Underwood', 'Vance', 'Walker', 'Xavier',
+            'Young', 'Zimmer', 'Archer', 'Brooks', 'Chase', 'Drake', 'Flynn', 'Grant',
+            'Hunt', 'Jones', 'Knight', 'Lee', 'Mason', 'North', 'Pierce', 'Reed'
         ];
-
-        async function generateSampleData() {
-            const status = document.getElementById('status');
-            status.innerHTML = 'Generating sample data...';
+        
+        // Initialize
+        function init() {
+            selectPattern('double-peak');
+            updatePreview();
+            
+            generateBtn.addEventListener('click', generateData);
+            
+            // Check Firebase connection
+            db.ref('.info/connected').on('value', (snap) => {
+                if (snap.val() === true) {
+                    addLog('✅ Firebase connected successfully', 'success');
+                } else {
+                    addLog('⚠️ Firebase disconnected - data may not save', 'warning');
+                }
+            });
+            
+            addLog('System ready. Select a pattern and click Generate.');
+        }
+        
+        // Select pattern
+        function selectPattern(pattern) {
+            selectedPattern = pattern;
+            
+            // Update UI
+            document.querySelectorAll('.pattern-option').forEach(el => {
+                el.classList.remove('selected');
+            });
+            document.querySelector(`[data-pattern="${pattern}"]`).classList.add('selected');
+            
+            updatePreview();
+        }
+        
+        // Update preview
+        function updatePreview() {
+            const pattern = patterns[selectedPattern];
+            
+            // Calculate expected daily visits (40 members × 2.5 avg visits × pattern multiplier)
+            const baseVisitsPerMember = 2.5;
+            const totalMultiplier = pattern.hourlyMultipliers.reduce((a, b) => a + b, 0) / 24;
+            const expectedDailyVisits = Math.round(40 * baseVisitsPerMember * totalMultiplier);
+            
+            previewVisits.textContent = expectedDailyVisits;
+            previewPeak.textContent = pattern.peakHour;
+            previewGrowth.textContent = pattern.weeklyGrowth + '%';
+            
+            // Update hourly preview
+            hourlyPreview.innerHTML = '';
+            pattern.hourlyMultipliers.forEach((multiplier, hour) => {
+                const bar = document.createElement('div');
+                bar.className = 'hour-bar';
+                
+                // Color code by time of day
+                if (hour >= 5 && hour <= 10) bar.classList.add('morning-bar');
+                else if (hour >= 17 && hour <= 21) bar.classList.add('evening-bar');
+                else if (hour >= 11 && hour <= 14) bar.classList.add('lunch-bar');
+                
+                // Calculate height (0-100%)
+                const height = Math.min(100, multiplier * 8);
+                bar.style.height = height + '%';
+                bar.title = `${hour}:00 - Multiplier: ${multiplier}x`;
+                
+                hourlyPreview.appendChild(bar);
+            });
+        }
+        
+        // Add log entry
+        function addLog(message, type = '') {
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-${type}">${message}</span>`;
+            
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        // Show notification
+        function showNotification(message, type = 'success') {
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.className = 'notification';
+            }, 5000);
+        }
+        
+        // Update progress
+        function updateProgress(percent) {
+            progressBar.style.width = percent + '%';
+        }
+        
+        // Generate data based on selected pattern
+        async function generateData() {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span>⏳ Generating Pattern Data...</span>';
+            logDiv.innerHTML = '';
+            progressBar.style.width = '0%';
+            
+            const pattern = patterns[selectedPattern];
+            
+            addLog(`Starting generation of ${pattern.name} pattern...`, 'success');
+            addLog(`Expected: ${pattern.description}`);
+            addLog(`Weekly Growth: ${pattern.weeklyGrowth}%`);
             
             try {
-                // First, let's check if we have existing members
-                const membersRef = ref(db, 'Customers');
+                // Clear existing data
+                addLog('Clearing old data...');
+                await new Promise((resolve, reject) => {
+                    db.ref('Customers').remove()
+                        .then(resolve)
+                        .catch(reject);
+                });
+                addLog('✅ Cleared old data');
                 
-                // Generate sample attendance data for the last 30 days
-                for (let i = 0; i < sampleNames.length; i++) {
-                    const uid = (10000000 + i).toString();
+                const now = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 45); // 45 days history
+                
+                // Generate 40 members
+                const totalMembers = 40;
+                let totalVisits = 0;
+                const hourlyTotals = Array(24).fill(0);
+                const dailyTotals = {};
+                
+                for (let i = 0; i < totalMembers; i++) {
+                    const firstName = firstNames[i % firstNames.length];
+                    const lastName = lastNames[i % lastNames.length];
+                    const uid = (30000000 + i).toString();
+                    
+                    // Generate attendance history
+                    const attendanceHistory = [];
+                    const currentDate = new Date(startDate);
+                    
+                    while (currentDate <= now) {
+                        const dayOfWeek = currentDate.getDay();
+                        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                        
+                        // Base visits: 2-3 per day, more on weekends for some patterns
+                        let baseVisits = 2 + Math.floor(Math.random() * 2); // 2-3
+                        
+                        // Adjust for pattern
+                        if (selectedPattern === 'weekend-warrior' && isWeekend) {
+                            baseVisits += 1; // Extra visit on weekends
+                        }
+                        
+                        for (let v = 0; v < baseVisits; v++) {
+                            // Determine hour based on pattern
+                            let hour = selectHourByPattern(pattern, isWeekend);
+                            
+                            const visitDate = new Date(currentDate);
+                            visitDate.setHours(hour, Math.floor(Math.random() * 60), 0, 0);
+                            
+                            // Visit duration: 45-90 minutes
+                            const duration = 45 + Math.floor(Math.random() * 45);
+                            
+                            attendanceHistory.push({
+                                checkin: visitDate.toISOString(),
+                                checkout: new Date(visitDate.getTime() + duration * 60000).toISOString(),
+                                time_spent: duration,
+                                date: visitDate.toISOString().split('T')[0]
+                            });
+                            
+                            // Track totals
+                            hourlyTotals[hour]++;
+                            totalVisits++;
+                            
+                            const dateStr = visitDate.toISOString().split('T')[0];
+                            dailyTotals[dateStr] = (dailyTotals[dateStr] || 0) + 1;
+                        }
+                        
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    }
+                    
+                    // Create member data
                     const memberData = {
                         personal_info: {
-                            firstname: sampleNames[i].first,
-                            lastname: sampleNames[i].last,
-                            phone: samplePhones[i],
-                            uid: parseInt(uid)
+                            firstname: firstName,
+                            lastname: lastName,
+                            phone: `555-${3000 + i}`,
+                            membership_type: Math.random() > 0.3 ? 'regular' : 'student'
                         },
                         membership: {
-                            status: "active",
-                            plan: "standard",
-                            payment_amount: 1500 + (i * 500),
-                            months_paid: 3 + (i % 4),
-                            start_date: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                            end_date: new Date(Date.now() + (30 + i * 7) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                            remaining_days: 30 + (i * 7),
-                            last_updated: new Date().toISOString().split('T')[0]
+                            status: 'active',
+                            plan: 'regular',
+                            plan_display: Math.random() > 0.3 ? 'Regular' : 'Student',
+                            monthly_rate: Math.random() > 0.3 ? 800 : 600,
+                            payment_amount: Math.random() > 0.3 ? 800 : 600,
+                            months_paid: 1,
+                            start_date: startDate.toISOString().split('T')[0],
+                            end_date: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                            remaining_days: 90,
+                            last_updated: now.toISOString().split('T')[0]
                         },
                         gym_data: {
                             uid: parseInt(uid),
-                            is_checked_in: Math.random() > 0.7, // 30% chance of being checked in
-                            total_visits: 0,
-                            total_time_spent: 0
+                            is_checked_in: Math.random() > 0.85, // 15% chance
+                            total_visits: attendanceHistory.length,
+                            total_time_spent: attendanceHistory.reduce((sum, visit) => sum + visit.time_spent, 0)
                         },
-                        attendance_history: []
+                        attendance_history: attendanceHistory
                     };
-
-                    // Generate sample attendance history for the last 30 days
-                    const attendanceHistory = [];
-                    const today = new Date();
                     
-                    for (let day = 0; day < 30; day++) {
-                        const visitDate = new Date(today);
-                        visitDate.setDate(visitDate.getDate() - day);
-                        
-                        // 60% chance of visiting on each day
-                        if (Math.random() > 0.4) {
-                            // Generate 1-3 visits per day (some members come multiple times)
-                            const visitsToday = Math.floor(Math.random() * 3) + 1;
-                            
-                            for (let visit = 0; visit < visitsToday; visit++) {
-                                const checkInHour = 6 + Math.floor(Math.random() * 14); // 6 AM to 8 PM
-                                const checkInTime = new Date(visitDate);
-                                checkInTime.setHours(checkInHour, Math.floor(Math.random() * 60), 0);
-                                
-                                const stayDuration = 30 + Math.floor(Math.random() * 120); // 30-150 minutes
-                                const checkOutTime = new Date(checkInTime.getTime() + stayDuration * 60 * 1000);
-                                
-                                attendanceHistory.push({
-                                    checkin: checkInTime.toISOString(),
-                                    checkout: checkOutTime.toISOString(),
-                                    time_spent: stayDuration,
-                                    date: visitDate.toISOString().split('T')[0]
-                                });
-                                
-                                memberData.gym_data.total_visits++;
-                                memberData.gym_data.total_time_spent += stayDuration;
-                            }
-                        }
+                    // Save to Firebase
+                    await new Promise((resolve, reject) => {
+                        db.ref('Customers/' + uid).set(memberData)
+                            .then(resolve)
+                            .catch(reject);
+                    });
+                    
+                    // Update progress
+                    const progress = ((i + 1) / totalMembers) * 100;
+                    updateProgress(progress);
+                    
+                    if ((i + 1) % 10 === 0) {
+                        addLog(`Generated ${i + 1}/${totalMembers} members`);
                     }
-                    
-                    memberData.attendance_history = attendanceHistory;
-                    
-                    // Set last check-in if member is currently checked in
-                    if (memberData.gym_data.is_checked_in && attendanceHistory.length > 0) {
-                        const latestVisit = attendanceHistory[0]; // Most recent is first
-                        memberData.gym_data.last_checkin = latestVisit.checkin;
-                    }
-
-                    // Save member to Firebase
-                    await set(ref(db, `Customers/${uid}`), memberData);
-                    
-                    status.innerHTML += `<br>Created member: ${sampleNames[i].first} ${sampleNames[i].last} (UID: ${uid})`;
                 }
                 
-                status.innerHTML += '<br><br><strong>Sample data generation complete!</strong>';
-                status.innerHTML += '<br>You can now check your analytics dashboard.';
+                // Calculate actual statistics
+                const daysGenerated = Object.keys(dailyTotals).length;
+                const avgDailyVisits = Math.round(totalVisits / daysGenerated);
+                
+                // Find peak hour
+                let peakHour = 0;
+                let maxHourlyVisits = 0;
+                hourlyTotals.forEach((count, hour) => {
+                    if (count > maxHourlyVisits) {
+                        maxHourlyVisits = count;
+                        peakHour = hour;
+                    }
+                });
+                
+                const peakHourFormatted = formatHour(peakHour);
+                
+                addLog(`✅ Generated ${totalMembers} members with ${totalVisits} total visits`, 'success');
+                addLog(`📊 Average: ${avgDailyVisits} visits per day`, 'success');
+                addLog(`⏰ Peak hour: ${peakHourFormatted} (${maxHourlyVisits} visits)`, 'success');
+                
+                // Generate PREDICTION DATA based on pattern
+                addLog('Generating prediction data based on pattern...');
+                
+                const nextHour = (now.getHours() + 1) % 24;
+                const patternMultiplier = pattern.hourlyMultipliers[nextHour];
+                const predictedVisits = Math.max(5, Math.min(30, Math.round(avgDailyVisits / 24 * patternMultiplier * 1.5)));
+                
+                // Confidence based on pattern stability
+                let confidence = 0.7;
+                if (selectedPattern === 'weekend-warrior') confidence = 0.5;
+                if (selectedPattern === 'double-peak') confidence = 0.8;
+                
+                await new Promise((resolve, reject) => {
+                    db.ref('Trend24h').set({
+                        nextHour: predictedVisits,
+                        confidence: confidence,
+                        timestamp: now.toISOString(),
+                        nextHourTime: `${nextHour}:00`,
+                        pattern: pattern.name
+                    }).then(resolve).catch(reject);
+                });
+                
+                addLog(`🎯 Prediction: ${predictedVisits} visitors at ${nextHour}:00 (${Math.round(confidence*100)}% confidence)`);
+                
+                // Generate WEEKLY GROWTH DATA based on pattern
+                const baseWeekly = Math.round(avgDailyVisits * 7);
+                let weeklyGrowth = pattern.weeklyGrowth;
+                
+                // Add some randomness to growth
+                if (typeof weeklyGrowth === 'string') {
+                    // For weekend warrior: ±15%
+                    weeklyGrowth = (Math.random() > 0.5 ? 15 : -10);
+                } else {
+                    weeklyGrowth += (Math.random() * 6 - 3); // ±3% variation
+                }
+                
+                await new Promise((resolve, reject) => {
+                    db.ref('WeeklyGrowthRate').set({
+                        pct: parseFloat(weeklyGrowth.toFixed(1)),
+                        thisWeekSum: Math.round(baseWeekly * (1 + weeklyGrowth/100)),
+                        lastWeekSum: baseWeekly,
+                        timestamp: now.toISOString(),
+                        pattern: pattern.name,
+                        trend: weeklyGrowth > 0 ? 'up' : 'down'
+                    }).then(resolve).catch(reject);
+                });
+                
+                addLog(`📈 Weekly Growth: ${weeklyGrowth > 0 ? '+' : ''}${weeklyGrowth.toFixed(1)}%`);
+                
+                // Final success
+                showNotification(`✅ ${pattern.name} pattern generated successfully! Open analytics.html to see the effects.`);
+                updateProgress(100);
+                
+                addLog('=========================================', 'success');
+                addLog('🎉 DATA GENERATION COMPLETE!', 'success');
+                addLog(`Pattern: ${pattern.name}`, 'success');
+                addLog(`Total visits: ${totalVisits}`, 'success');
+                addLog(`Next hour prediction: ${predictedVisits} visitors`, 'success');
+                addLog(`Weekly growth: ${weeklyGrowth > 0 ? '+' : ''}${weeklyGrowth.toFixed(1)}%`, 'success');
+                addLog('Open analytics.html to test predictions!', 'success');
                 
             } catch (error) {
-                status.innerHTML = `<br>Error: ${error.message}`;
+                console.error('Error:', error);
+                addLog(`❌ Error: ${error.message}`, 'error');
+                showNotification('❌ Error generating data', 'error');
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<span>🚀 Generate Test Data</span>';
             }
         }
-
-        // Add button to generate data
-        document.addEventListener('DOMContentLoaded', function() {
-            const button = document.createElement('button');
-            button.textContent = 'Generate Sample Data (10 Members + 30 Days History)';
-            button.style.padding = '15px 20px';
-            button.style.fontSize = '16px';
-            button.style.margin = '20px';
-            button.style.backgroundColor = '#9b4de4d3';
-            button.style.color = 'white';
-            button.style.border = 'none';
-            button.style.borderRadius = '5px';
-            button.style.cursor = 'pointer';
+        
+        // Select hour based on pattern
+        function selectHourByPattern(pattern, isWeekend) {
+            const multipliers = pattern.hourlyMultipliers;
             
-            button.addEventListener('click', generateSampleData);
+            // Create weighted distribution
+            const totalWeight = multipliers.reduce((a, b) => a + b, 0);
+            const weighted = [];
+            let cumulative = 0;
             
-            const status = document.createElement('div');
-            status.id = 'status';
-            status.style.margin = '20px';
-            status.style.padding = '15px';
-            status.style.backgroundColor = '#f8f9fa';
-            status.style.borderRadius = '5px';
-            status.style.fontFamily = 'monospace';
-            status.style.whiteSpace = 'pre-wrap';
+            for (let i = 0; i < 24; i++) {
+                cumulative += multipliers[i];
+                weighted[i] = cumulative / totalWeight;
+            }
             
-            document.body.appendChild(button);
-            document.body.appendChild(status);
-        });
+            // Random selection based on weights
+            const random = Math.random();
+            for (let i = 0; i < 24; i++) {
+                if (random <= weighted[i]) {
+                    return i;
+                }
+            }
+            
+            return 17; // Default to 5 PM
+        }
+        
+        // Format hour for display
+        function formatHour(hour) {
+            if (hour === 0) return '12 AM';
+            if (hour === 12) return '12 PM';
+            if (hour < 12) return `${hour} AM`;
+            return `${hour - 12} PM`;
+        }
+        
+        // Initialize on load
+        window.onload = init;
     </script>
-</head>
-<body>
-    <h1>Generate Sample Gym Data</h1>
-    <p>This will create 10 sample members with 30 days of attendance history.</p>
-
-    <button id="seedAI" style="padding:12px; background:#9b4de4d3; color:#fff; border:none; border-radius:5px; margin:10px;">
-  Seed 24h AI Forecast
-</button>
-
-<script type="module">
-import {db} from './js/database_init.js';
-import {set, ref} from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js';
-
-document.getElementById('seedAI').onclick = async () => {
-  const hours = {};
-  for (let h = 0; h < 24; h++) {
-    hours[h] = {
-      nextHour: Math.floor(Math.random() * 30 + 5),
-      confidence: +(Math.random() * 0.4 + 0.6).toFixed(2)
-    };
-  }
-  // write both the full day and the “current” slot the card reads
-  const now = new Date().getHours();
-  await set(ref(db, 'Trend24h'), {
-    ...hours,
-    nextHour: hours[now].nextHour,
-    confidence: hours[now].confidence
-  });
-  alert('AI forecast seeded 🪄 Reload analytics to peep the numbers.');
-};
-</script>
 </body>
 </html>

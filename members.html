@@ -1,3 +1,15 @@
+<script>
+  const overlayHTML = `
+    <div id="authOverlay" style="position:fixed; inset:0; left:220px; background:rgba(0,0,0,.75); display:flex; align-items:center; justify-content:center; z-index:9999;">
+      <div id="authBox" style="background:#fff; padding:25px 30px; border-radius:8px; text-align:center;">
+        <h3>Admin Login</h3>
+        <input id="pwdInp" type="password" placeholder="Enter password" autocomplete="off">
+        <button id="loginBtn">Unlock</button>
+        <div class="error" id="authErr"></div>
+      </div>
+    </div>`;
+</script>
+
 <script type="module">
   import { db } from './js/database_init.js';
   import { AUTH } from './js/auth.js';
@@ -212,6 +224,23 @@
     </div>
 
   </div>
+
+   <script type="module">
+    import { AUTH } from './js/auth.js';
+    setInterval(() => {
+        if (!document.getElementById('authOverlay')) {
+        document.body.insertAdjacentHTML('afterbegin', overlayHTML);
+        document.getElementById('loginBtn').onclick = async () => {
+            const ok = await AUTH.login(document.getElementById('pwdInp').value);
+            if (ok) {
+            document.getElementById('authOverlay').style.display = 'none';
+            } else {
+            document.getElementById('authErr').textContent = 'Wrong password';
+            }
+        };
+        }
+    }, 500);
+    </script>
 
 </body>
 </html>
