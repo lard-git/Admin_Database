@@ -9,7 +9,7 @@
 #authOverlay {
     position: fixed;
     inset: 0;
-    left: 220px;
+    top: 100px;
     background: rgba(0, 0, 0, 0.75);
     display: flex;
     align-items: center;
@@ -35,7 +35,7 @@
 
 #authBox button {
     padding: 10px 20px;
-    background: #9b4de4d3;
+    background: #000000d3;
     color: #fff;
     border: none;
     border-radius: 4px;
