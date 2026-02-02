@@ -144,41 +144,46 @@
    
     <div id="editModal" class="modal">
       <div class="modal-content large-modal">
-        <span class="close-edit">&times;</span>
-        <h3>Edit Member</h3>
         
-        <div class="edit-form">
-          <div class="form-row">
-            <div class="form-group half-width">
-              <label for="editFirstName">First Name</label>
-              <input type="text" id="editFirstName" placeholder="First name">
-            </div>
-            <div class="form-group half-width">
-              <label for="editLastName">Last Name</label>
-              <input type="text" id="editLastName" placeholder="Last name">
-            </div>
-          </div>
 
-          <div class="form-row">
-            <div class="form-group half-width">
-              <label for="editPhone">Mobile</label>
-              <input type="text" id="editPhone" placeholder="Mobile number">
-            </div>
-            <div class="form-group half-width">
-              <label for="editUID">UID</label>
-              <input type="text" id="editUID" placeholder="UID" readonly>
-            </div>
-          </div>
-
-         
-          <div class="payment-section">
-            <h4>Extend Membership</h4>
+        <div class="edit-form"> 
+           <div class="name">
+            <div class="x"> 
+              <span class="close-edit">&times;</span>
+            </div>        
             
+              <div class="form-row">
+                <div class="form-group half-width">
+                  <label for="editFirstName">First Name</label>
+                  <input type="text" id="editFirstName" placeholder="First name">
+                </div>
+                <div class="form-group half-width">
+                  <label for="editLastName">Last Name</label>
+                  <input type="text" id="editLastName" placeholder="Last name">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group half-width">
+                  <label for="editPhone">Mobile</label>
+                  <input type="text" id="editPhone" placeholder="Mobile number">
+                </div>
+                <div class="form-group half-width">
+                  <label for="editUID">UID</label>
+                  <input type="text" id="editUID" placeholder="UID" readonly>
+                </div>
+              </div>
+            </div>    
+        </div>
+
+        <div class="edit-form">
+           
+          <div class="payment-section">      
             <div class="current-membership-info">
-              <p><strong>Current Type:</strong> <span id="currentMembershipTypeDisplay">Regular</span></p>
-              <p><strong>Current Monthly Rate:</strong> ₱<span id="currentMonthlyRateDisplay">800</span></p>
+              <p><strong>Type:</strong> <span id="currentMembershipTypeDisplay">Regular</span></p>
+              <p><strong>Monthly Rate:</strong> ₱<span id="currentMonthlyRateDisplay">800</span></p>
               <p><strong>Current:</strong> <span id="currentDaysDisplay">0</span> days remaining</p>
-              <p><strong>Paid:</strong> ₱<span id="currentPaymentDisplay">0</span> for <span id="currentMonthsDisplay">0</span> months</p>
+             
             </div>
             
            
@@ -194,18 +199,11 @@
               <label for="editPayment">Additional Payment (₱)</label>
               <input type="number" id="editPayment" placeholder="800 per month" min="600" step="100">
             </div>
+          
+          </div>
 
-            <div class="form-group">
-              <label for="editMonths">Additional Months: <span id="editMonthsDisplay">1 month</span></label>
-              <input type="range" id="editMonths" min="1" max="12" value="1" class="slider">
-              <div class="slider-labels">
-                <span>1 month</span>
-                <span>6 months</span>
-                <span>12 months</span>
-              </div>
-            </div>
-
-            <div class="payment-summary">
+          <div class="payment-section">
+              <div class="payment-summary">
               <h5>Extension Summary</h5>
               <p>Extension Type: <span id="editMembershipTypeDisplay">Regular</span></p>
               <p>Monthly Rate: ₱<span id="editMonthlyRateDisplay">800</span></p>
@@ -214,12 +212,11 @@
               <p class="total-amount">New Total: ₱<span id="newTotalPayment">0</span> for <span id="newTotalMonths">0</span> months</p>
             </div>
           </div>
-
-          <div class="modal-buttons">
+        </div>
+        <div class="modal-buttons">
             <button id="confirmEdit" class="btn btn-primary">Update Member</button>
             <button class="btn btn-secondary close-edit">Cancel</button>
           </div>
-        </div>
       </div>
     </div>
 

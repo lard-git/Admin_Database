@@ -1,27 +1,45 @@
+@font-face {
+    font-family: "Personafont";
+    src: url(/Admin_Database/FOT-Skip\ Std\ B.otf) format("opentype");
+    font-style: normal;
+    font-weight: normal;
+    
+}
+
 body {
     margin: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Personafont', sans-serif;
     display: flex;
-    background: #f8f9fa;
+    background-color: #ebc069;
+    background-image:  url('/Admin_Database/resources/bg.png');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
 }
 
 .sidebar {
+    display: flex;
     width: 220px;
-    background: #222;
+    background-image: linear-gradient(to right, rgba(146, 146, 146, 0.459),  rgba(0, 0, 0, 0.87)), url('/Admin_Database/resources/a.png'); 
+    background-size: fit-content;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
     color: white;
-    height: 100vh;
-    padding: 20px;
+    width: 100vw;
+    padding-top: 20px;
+    padding-left: 20px;
+    padding-right: 20px;
     position: fixed;
-    left: 0;
     top: 0;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    gap: 30px;
+    border-bottom: 2px solid #333;
 }
 
 .sidebar h2 {
     margin-top: 0;
-    color: #9b4de4d3;
-    border-bottom: 2px solid #9b4de4d3;
-    padding-bottom: 10px;
+    color: #000000d3;
+    border-bottom: 2px solid #333333e5;
     font-size: 24px;
 }
 
@@ -31,25 +49,43 @@ body {
     padding: 12px 15px;
     text-decoration: none;
     margin: 8px 0;
-    border-radius: 5px;
+    border-radius: 8px 8px 0px 0px;
     transition: all 0.3s ease;
     font-size: 16px;
 }
 
 .sidebar a:hover {
     background: #444;
-    color: #9b4de4d3;
+    color: #000000d3;
     transform: translateX(5px);
+    margin-bottom: 0px;
 }
 
+.sidebar a:not(.active) {
+     background: #f3d18c;
+     margin-bottom: 0px;
+     border-top: 2px solid #3333336e;
+    border-left: 2px solid #3333336e;
+    border-right: 2px solid #3333336e;
+    font-size: 15px;
+}
 .sidebar a.active {
-    background: #9b4de4d3;
+    border-top: 2px solid #333333e5;
+    border-left: 2px solid #333333e5;
+    border-right: 2px solid #333333e5;
+    border-bottom: none; 
+    background: #ebc069;
     color: #222;
     font-weight: bold;
+    margin-bottom: -2px;
+    text-align: center;
+    font-size: 15px;
 }
 
+
 .content {
-    margin-left: 240px;
+    margin-top: 100px;
+    margin-left: 100px;
     padding: 30px;
     width: calc(100% - 240px);
     min-height: 100vh;
@@ -96,12 +132,12 @@ body {
 .stat-card span {
     font-size: 32px;
     font-weight: bold;
-    color: #9b4de4d3;
+    color: #000000d3;
 }
 
 /* Badges */
 .badge {
-    background: #9b4de4d3;
+    background: #000000d3;
     color: white;
     padding: 4px 8px;
     border-radius: 12px;
@@ -136,7 +172,7 @@ body {
 }
 
 #memberUidInput:focus {
-    border-color: #9b4de4d3;
+    border-color: #000000d3;
 }
 
 #checkInOutBtn {
@@ -226,7 +262,7 @@ body {
     background: #f8f9fa;
     padding: 15px;
     border-radius: 8px;
-    border-left: 4px solid #28a745;
+    
     display: flex;
     justify-content: space-between;
     align-items: center;

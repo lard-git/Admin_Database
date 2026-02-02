@@ -1,3 +1,11 @@
+@font-face {
+    font-family: "Personafont";
+    src: url(/Admin_Database/FOT-Skip\ Std\ B.otf) format("opentype");
+    font-style: normal;
+    font-weight: normal;
+    
+}
+
 #authOverlay {
     position: fixed;
     inset: 0;
@@ -46,30 +54,40 @@
 
 body {
     margin: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: "Personafont", sans-serif;
     display: flex;
-    background: #f8f9fa;
+     background-color: #ebc069;
+    background-image:  url('/Admin_Database/resources/bg.png') ;
+    background-size: cover;
+    background-position: center;
 }
 
 .sidebar {
+    display: flex;
     width: 220px;
-    background: #222;
+    background-image: linear-gradient(to right, rgba(146, 146, 146, 0.459),  rgba(0, 0, 0, 0.87)), url('/Admin_Database/resources/a.png'); 
+    background-size: fit-content;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
     color: white;
-    height: 100vh;
-    padding: 20px;
+    width: 100vw;
+    padding-top: 20px;
+    padding-left: 20px;
+    padding-right: 20px;
     position: fixed;
-    left: 0;
     top: 0;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    gap: 30px;
+    border-bottom: 2px solid #333;
 }
 
 .sidebar h2 {
     margin-top: 0;
-    color: #9b4de4d3;
-    border-bottom: 2px solid #9b4de4d3;
-    padding-bottom: 10px;
+    color: #000000d3;
+    border-bottom: 2px solid #333333e5;
     font-size: 24px;
 }
+
 
 .sidebar a {
     display: block;
@@ -77,25 +95,42 @@ body {
     padding: 12px 15px;
     text-decoration: none;
     margin: 8px 0;
-    border-radius: 5px;
+    border-radius: 8px 8px 0px 0px;
     transition: all 0.3s ease;
     font-size: 16px;
 }
 
 .sidebar a:hover {
     background: #444;
-    color: #9b4de4d3;
+    color: #000000d3;
     transform: translateX(5px);
+    margin-bottom: 0px;
+}
+.sidebar a:not(.active) {
+     background: #f3d18c;
+     margin-bottom: 0px;
+     border-top: 2px solid #3333336e;
+    border-left: 2px solid #3333336e;
+    border-right: 2px solid #3333336e;
+    font-size: 15px;
 }
 
 .sidebar a.active {
-    background: #9b4de4d3;
+    border-top: 2px solid #333333e5;
+    border-left: 2px solid #333333e5;
+    border-right: 2px solid #333333e5;
+    border-bottom: none; 
+    background: #ebc069;
     color: #222;
     font-weight: bold;
+    margin-bottom: -2px;
+    text-align: center;
+    font-size: 15px;
 }
 
 .content {
-    margin-left: 240px;
+    margin-top: 65px;
+    margin-left: 100px;
     padding: 30px;
     width: calc(100% - 240px);
     min-height: 100vh;
@@ -126,7 +161,7 @@ body {
 .search-box {
     display: flex;
     background: white;
-    border-radius: 25px;
+    border-radius: 0px;
     padding: 5px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
@@ -141,9 +176,9 @@ body {
 }
 
 #searchBtn {
-    background: #9b4de4d3;
+    background: #000000d3;
     border: none;
-    border-radius: 50%;
+    border-radius: 10%;
     width: 40px;
     height: 40px;
     cursor: pointer;
@@ -158,7 +193,7 @@ body {
 .stats {
     background: white;
     padding: 10px 20px;
-    border-radius: 20px;
+    border-radius: 0px;
     font-weight: bold;
     color: #333;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -280,27 +315,32 @@ tbody tr:last-child td {
 }
 
 /* Modal Styles */
+
+
+
 .modal {
     display: none;
     position: fixed;
     z-index: 1000;
     left: 0;
     top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
+    width: 100vw;
+    height: 100vh;
+    
+
 }
 
 .modal-content {
+    display: flex;
     background-color: white;
     margin: 5% auto;
     padding: 30px;
     border-radius: 10px;
-    width: 90%;
-    max-width: 400px;
     text-align: center;
     position: relative;
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    flex-direction: column;
+    align-items: center;
 }
 
 .close {
@@ -385,18 +425,20 @@ tbody tr:last-child td {
 }
 
 .summary-card {
-    background: white;
+    background-color: rgba(255, 255, 255, 0);
+    background-image: url(/Admin_Database/resources/box.png);
+    background-size: cover;
+    background-position: center;
     padding: 20px;
     border-radius: 10px;
     text-align: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    border-left: 4px solid #ddd;
+    
 }
 
 .summary-card h3 {
     margin: 0 0 10px 0;
     font-size: 14px;
-    color: #666;
+    color: #000000;
     text-transform: uppercase;
 }
 
@@ -405,33 +447,23 @@ tbody tr:last-child td {
     font-weight: bold;
 }
 
-.summary-card.active {
-    border-left-color: #28a745;
-}
 
 .summary-card.active span {
     color: #28a745;
 }
 
-.summary-card.expiring {
-    border-left-color: #ffc107;
-}
 
 .summary-card.expiring span {
     color: #ffc107;
 }
 
-.summary-card.expired {
-    border-left-color: #dc3545;
-}
+
 
 .summary-card.expired span {
     color: #dc3545;
 }
 
-.summary-card.revenue {
-    border-left-color: #17a2b8;
-}
+
 
 .summary-card.revenue span {
     color: #17a2b8;
@@ -613,15 +645,25 @@ td {
 
 /* Edit Modal Styles */
 .large-modal {
-    max-width: 600px;
-    max-height: 85vh;
+    max-width: 1200px;
+    max-height: 90vh;
     overflow-y: auto;
     margin: 2% auto;
     width: 95%;
 }
 
+.name{
+    display: flex;
+    flex-direction: row;
+}
+
+
 .edit-form {
     margin-top: 15px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 50px;
 }
 
 .edit-form .form-group {
@@ -660,6 +702,7 @@ td {
     display: flex;
     gap: 12px;
     margin-bottom: 12px;
+    margin-left: 10px;
 }
 
 .edit-form .half-width {
@@ -667,11 +710,14 @@ td {
 }
 
 .edit-form .payment-section {
+    width: 500px;
     background: #f8f9fa;
     padding: 12px;
     border-radius: 6px;
     margin: 15px 0;
-    border-left: 4px solid #9b4de4d3;
+    display: flex;
+    flex-direction: column;
+    align-items: top;
 }
 
 .edit-form .payment-section h4 {
@@ -692,7 +738,7 @@ td {
 .edit-form .payment-summary h5 {
     margin-top: 0;
     color: #333;
-    font-size: 13px;
+    font-size: 20px;
 }
 
 .edit-form .payment-summary p {
@@ -733,15 +779,9 @@ td {
     background: #5a6268;
 }
 
-/* Make slider more compact */
-.edit-form .slider {
-    margin: 8px 0;
-}
 
-.edit-form .slider-labels {
-    font-size: 11px;
-    margin-top: 3px;
-}
+
+
 
 /* Responsive modal */
 @media (max-width: 768px) {
@@ -750,6 +790,7 @@ td {
         max-height: 90vh;
         margin: 1% auto;
         padding: 15px;
+      
     }
     
     .edit-form .form-row {
@@ -784,3 +825,22 @@ td {
     top: 5px;
     right: 10px;
 }
+
+.x{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+}
+
+.x :hover {
+    transform: scale(0.5);
+}
+
+.current-membership-info {
+    display: flex;
+    flex-direction: row;
+    gap: 100px;
+}
+

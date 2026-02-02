@@ -12,7 +12,7 @@
 
 <script type="module">
   import { db } from './js/database_init.js';
-  import { AUTH } from './js/auth.js';
+  import { AUTH } from '/Admin_Database/js/auth.js';
 
   if (sessionStorage.getItem('gym_admin') === 'yes') {
     document.getElementById('authOverlay').style.display = 'none';
@@ -71,8 +71,13 @@
         <h1>Register New Member</h1>
         
         <div class="layout-container">
+
+            
             <div class="form-section compact-form">
-                
+                <div class="logo-section">
+                <img src="/Admin_Database/resources/lollang.png" class="logo">
+                <h1 class="logo-text">MUSCLETONED LOLLANG</h1>
+                </div>
                 <div class="form-row">
                     <div class="form-group half-width">
                         <label for="FnameInp">First Name</label>
@@ -95,49 +100,49 @@
                     </div>
                 </div>
 
-               
+            </div>
+
+             <div class="form-section compact-form">
+                <div class="flexdivxd"> 
                 <div class="payment-section">
                     <h3>Membership Payment</h3>
                     
                     
                     <div class="form-group">
-                        <label for="membershipType">Membership Type</label>
+
+                        <label for="membershipType"class="label">Membership Type</label>
                         <select id="membershipType" class="membership-type-select">
                             <option value="student" data-price="600">Student - ₱600/month</option>
                             <option value="regular" data-price="800" selected>Regular - ₱800/month</option>
                         </select>
-                    </div>
                     
-                    <div class="form-group">
-                        <label for="PaymentInp">Payment Amount (₱)</label>
+                        <label for="PaymentInp" class="label">Payment Amount</label>
                         <input type="number" id="PaymentInp" placeholder="800 per month" min="600" step="100">
                     </div>
+                    
+                    <div class="split2">
+                        
+                            <label for="MonthsSlider">Membership Duration: <span id="monthsDisplay">1 month</span></label>
+                            <input type="range" id="MonthsSlider" min="1" max="12" value="1" class="slider">
+                            <div class="slider-labels">
+                                <span>1 month</span>
+                                <span>6 months</span>
+                                <span>12 months</span>
+                            </div>
+                        
 
-                    <div class="form-group">
-                        <label for="MonthsSlider">Membership Duration: <span id="monthsDisplay">1 month</span></label>
-                        <input type="range" id="MonthsSlider" min="1" max="12" value="1" class="slider">
-                        <div class="slider-labels">
-                            <span>1 month</span>
-                            <span>6 months</span>
-                            <span>12 months</span>
+                        <div class="payment-summary">
+                            <h4>Payment Summary</h4>
+                            <p>Membership Type: <span id="membershipTypeDisplay">Regular</span></p>
+                            <p>Monthly Rate: ₱<span id="monthlyRateDisplay">800</span></p>
+                            <p>Selected Months: <span id="selectedMonths">1</span></p>
+                            <p class="total-amount">Total Amount: ₱<span id="totalAmount">800</span></p>
                         </div>
-                    </div>
-
-                    <div class="payment-summary">
-                        <h4>Payment Summary</h4>
-                        <p>Membership Type: <span id="membershipTypeDisplay">Regular</span></p>
-                        <p>Monthly Rate: ₱<span id="monthlyRateDisplay">800</span></p>
-                        <p>Selected Months: <span id="selectedMonths">1</span></p>
-                        <p class="total-amount">Total Amount: ₱<span id="totalAmount">800</span></p>
-                    </div>
-                </div>
-
-                <div class="buttons-container">
+                    </div>        
                     <button id="AddBtn" class="btn btn-primary">Add Member</button>
                 </div>
+             </div>
             </div>
-
-           
             <div class="qr-section">
                 <h3>Member QR Code</h3>
                 <div class="qr-container">
