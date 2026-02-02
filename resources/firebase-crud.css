@@ -1,6 +1,6 @@
 @font-face {
     font-family: "Personafont";
-    src: url(/Admin_Database/FOT-Skip\ Std\ B.otf) format("opentype");
+    src: url(/FOT-Skip\ Std\ B.otf) format("opentype");
     font-style: normal;
     font-weight: normal;
     
@@ -57,7 +57,7 @@ body {
     font-family: 'Personafont', sans-serif;
     display: flex;
     background-color: #ebc069;
-    background-image:  url('/Admin_Database/resources/bg.png');
+    background-image:  url('/resources/bg.png');
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center;
@@ -66,7 +66,7 @@ body {
 .sidebar {
     display: flex;
     width: 220px;
-    background-image: linear-gradient(to right, rgba(146, 146, 146, 0.459),  rgba(0, 0, 0, 0.87)), url('/Admin_Database/resources/a.png'); 
+    background-image: linear-gradient(to right, rgba(146, 146, 146, 0.459),  rgba(0, 0, 0, 0.87)), url('/resources/a.png'); 
     background-size: fit-content;
     background-position: center;
     background-repeat: no-repeat;

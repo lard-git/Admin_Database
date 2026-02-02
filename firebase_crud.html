@@ -12,7 +12,7 @@
 
 <script type="module">
   import { db } from './js/database_init.js';
-  import { AUTH } from '/Admin_Database/js/auth.js';
+  import { AUTH } from './js/auth.js';
 
   if (sessionStorage.getItem('gym_admin') === 'yes') {
     document.getElementById('authOverlay').style.display = 'none';
@@ -75,7 +75,7 @@
             
             <div class="form-section compact-form">
                 <div class="logo-section">
-                <img src="/Admin_Database/resources/lollang.png" class="logo">
+                <img src="/resources/lollang.png" class="logo">
                 <h1 class="logo-text">MUSCLETONED LOLLANG</h1>
                 </div>
                 <div class="form-row">
