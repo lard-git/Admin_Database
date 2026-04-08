@@ -1,9 +1,6 @@
-
 import { db } from './database_init.js';
-import { getDatabase, ref, set, get, update, remove, onValue} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { ref, set, get, update, remove } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
-
-//dom elem
 const FnameInp = document.getElementById("FnameInp");
 const LnameInp = document.getElementById("LnameInp");
 const MobileInp = document.getElementById("MobileInp");
@@ -22,69 +19,55 @@ function updatePaymentDisplay(months) {
     TotalAmountSpan.textContent = (months * currentPrice).toLocaleString();
 }
 
-
 function getCurrentPrice() {
     const membershipTypeSelect = document.getElementById('membershipType');
     const selectedOption = membershipTypeSelect.options[membershipTypeSelect.selectedIndex];
     return parseInt(selectedOption.getAttribute('data-price'));
 }
 
-//payment
 function initializePaymentCalculator() {
     const membershipTypeSelect = document.getElementById('membershipType');
     const monthlyRateDisplay = document.getElementById('monthlyRateDisplay');
     const membershipTypeDisplay = document.getElementById('membershipTypeDisplay');
-    
-    
-    function getCurrentPrice() {
-        const selectedOption = membershipTypeSelect.options[membershipTypeSelect.selectedIndex];
-        return parseInt(selectedOption.getAttribute('data-price'));
-    }
-    
-    // student/normal
+
     membershipTypeSelect.addEventListener('change', function() {
         const selectedOption = this.options[this.selectedIndex];
         const price = selectedOption.getAttribute('data-price');
         const typeText = selectedOption.text.split(' - ')[0];
-        
+
         monthlyRateDisplay.textContent = price;
         membershipTypeDisplay.textContent = typeText;
-        
-        
+
         PaymentInp.min = price;
         PaymentInp.step = price;
         PaymentInp.placeholder = `${price} per month`;
-        
-        
+
         const months = parseInt(MonthsSlider.value);
         updatePaymentDisplay(months);
     });
-    
-    //months based on payment
+
     PaymentInp.addEventListener('input', function() {
         const payment = parseInt(this.value) || 0;
         const currentPrice = getCurrentPrice();
         const calculatedMonths = Math.floor(payment / currentPrice);
         const maxMonths = 12;
-        
+
         if (calculatedMonths > 0) {
             const months = Math.min(calculatedMonths, maxMonths);
             MonthsSlider.value = months;
             updatePaymentDisplay(months);
         }
     });
-    
-  
+
     MonthsSlider.addEventListener('input', function() {
         const months = parseInt(this.value);
         updatePaymentDisplay(months);
-        
-       
+
         const currentPrice = getCurrentPrice();
         const paymentAmount = months * currentPrice;
         PaymentInp.value = paymentAmount;
     });
-    
+
     updatePaymentDisplay(1);
 }
 
@@ -93,9 +76,15 @@ function validateForm() {
         alert("Please enter both first and last name");
         return false;
     }
-    
-    if (!MobileInp.value.trim()) {
+
+    const phone = MobileInp.value.trim();
+    if (!phone) {
         alert("Please enter mobile number");
+        return false;
+    }
+    if (!/^\d{11}$/.test(phone)) {
+        alert("Mobile number must be exactly 11 digits (numbers only)");
+        MobileInp.focus();
         return false;
     }
 
@@ -104,7 +93,7 @@ function validateForm() {
         alert(`Please enter payment amount (minimum ₱${currentPrice})`);
         return false;
     }
-    
+
     return true;
 }
 
@@ -120,7 +109,6 @@ function clearForm() {
     qrImg.alt = "QR Code will appear here";
 }
 
-
 function random8Digit() {
     return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
@@ -134,17 +122,19 @@ async function generateUniqueUID() {
     throw new Error("Could not generate unique UID");
 }
 
-
 function generateQR(uid) {
     const payload = encodeURIComponent(uid);
     qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${payload}`;
     qrImg.alt = `QR Code for Member ID: ${uid}`;
 }
 
-//crud
 async function AddData() {
     if (!validateForm()) return;
-    
+
+    const addBtn = document.getElementById("AddBtn");
+    addBtn.disabled = true;
+    addBtn.textContent = "Adding...";
+
     try {
         const newUID = await generateUniqueUID();
         UidInp.value = newUID;
@@ -153,12 +143,11 @@ async function AddData() {
         const selectedMonths = parseInt(MonthsSlider.value) || 1;
         const membershipType = document.getElementById('membershipType').value;
         const membershipTypeText = document.getElementById('membershipType').options[document.getElementById('membershipType').selectedIndex].text.split(' - ')[0];
-        
-       //date
+
         const startDate = new Date();
         const endDate = new Date();
         endDate.setMonth(endDate.getMonth() + selectedMonths);
-        
+
         const startDateStr = startDate.toISOString().split('T')[0];
         const endDateStr = endDate.toISOString().split('T')[0];
         const remainingDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
@@ -168,13 +157,13 @@ async function AddData() {
                 firstname: FnameInp.value.trim(),
                 lastname: LnameInp.value.trim(),
                 phone: MobileInp.value.trim(),
-                membership_type: membershipType  
+                membership_type: membershipType
             },
             membership: {
                 status: "active",
-                plan: membershipType,           
-                plan_display: membershipTypeText, 
-                monthly_rate: getCurrentPrice(),  
+                plan: membershipType,
+                plan_display: membershipTypeText,
+                monthly_rate: getCurrentPrice(),
                 payment_amount: paymentAmount,
                 months_paid: selectedMonths,
                 start_date: startDateStr,
@@ -196,6 +185,9 @@ async function AddData() {
 
     } catch (err) {
         alert("Error adding member: " + err.message);
+    } finally {
+        addBtn.disabled = false;
+        addBtn.textContent = "Add Member";
     }
 }
 
@@ -213,13 +205,11 @@ async function ReadData() {
         }
 
         const data = snap.val();
-        
-        
+
         FnameInp.value = data.personal_info?.firstname || "";
         LnameInp.value = data.personal_info?.lastname || "";
         MobileInp.value = data.personal_info?.phone || "";
-        
-        //payment data
+
         if (data.membership) {
             PaymentInp.value = data.membership.payment_amount || 500;
             const months = data.membership.months_paid || 1;
@@ -239,18 +229,17 @@ async function UpdateData() {
         alert("Please enter a UID to update member");
         return;
     }
-    
+
     if (!validateForm()) return;
 
     try {
         const paymentAmount = parseInt(PaymentInp.value) || 500;
         const selectedMonths = parseInt(MonthsSlider.value) || 1;
-        
-        //dates
+
         const startDate = new Date();
         const endDate = new Date();
         endDate.setMonth(endDate.getMonth() + selectedMonths);
-        
+
         const startDateStr = startDate.toISOString().split('T')[0];
         const endDateStr = endDate.toISOString().split('T')[0];
         const remainingDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
@@ -293,17 +282,20 @@ async function DeleteData() {
     }
 }
 
-//intialization
 document.addEventListener('DOMContentLoaded', function() {
-    
     initializePaymentCalculator();
-    
+
     document.getElementById("AddBtn").onclick = AddData;
-    document.getElementById("ReadBtn").onclick = ReadData;
-    document.getElementById("UpdateBtn").onclick = UpdateData;
-    document.getElementById("DeleteBtn").onclick = DeleteData;
+
+    const readBtn = document.getElementById("ReadBtn");
+    const updateBtn = document.getElementById("UpdateBtn");
+    const deleteBtn = document.getElementById("DeleteBtn");
+    if (readBtn) readBtn.onclick = ReadData;
+    if (updateBtn) updateBtn.onclick = UpdateData;
+    if (deleteBtn) deleteBtn.onclick = DeleteData;
 
     [FnameInp, LnameInp, MobileInp, UidInp, PaymentInp].forEach(input => {
+        if (!input) return;
         input.addEventListener("keypress", function(event) {
             if (event.key === "Enter") {
                 event.preventDefault();

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gym Occupancy - Gym Admin</title>
   <script type="module" src="js/occupancy.js"></script>
+  <script type="module" src="js/ui.js"></script>
   <link rel="stylesheet" href="resources/occupancy.css">
 </head>
 <body>
@@ -14,10 +15,9 @@
     <a href="firebase_crud.html">Register Member</a>
     <a href="members.html"> Members List</a>
     <a href="occupancy.html" class="active"> Gym Occupancy</a>
-    <a href="analytics.html" >Analytics</a>
+    <a href="analytics.html">Analytics</a>
   </div>
 
-  
   <div class="content">
     <div class="page-header">
       <h1>Gym Occupancy</h1>
@@ -38,14 +38,13 @@
           <h3>Peak Hours</h3>
           <span id="peakHours">--:--</span>
         </div>
-        <div class ="stat-card">
+        <div class="stat-card">
           <h3>Walk-ins Today</h3>
-          <span id ="walkinToday">0</span>
+          <span id="walkinToday">0</span>
         </div>
       </div>
     </div>
 
-   
     <div class="checkin-section">
       <h2>Member Check-in/out</h2>
       <div class="checkin-form">
@@ -55,12 +54,9 @@
       <div id="checkinMessage" class="message"></div>
     </div>
 
-   
     <div class="occupancy-section">
       <h2>Currently in Gym <span class="badge" id="currentCountBadge">0</span></h2>
-      <div id="currentMembersList" class="members-grid">
-        
-      </div>
+      <div id="currentMembersList" class="members-grid"></div>
       <div id="emptyOccupancy" class="empty-state">
         <p>No members currently in the gym</p>
       </div>
@@ -83,9 +79,7 @@
             <th>Remaining Days</th>
           </tr>
         </thead>
-        <tbody id="activityTableBody">
-          
-        </tbody>
+        <tbody id="activityTableBody"></tbody>
       </table>
     </div>
   </div>

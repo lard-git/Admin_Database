@@ -18,11 +18,21 @@
     document.getElementById('authOverlay').style.display = 'none';
   } else {
     document.getElementById('loginBtn').onclick = async () => {
+      const btn = document.getElementById('loginBtn');
+      btn.disabled = true;
+      btn.textContent = '...';
       const ok = await AUTH.login(document.getElementById('pwdInp').value);
+      btn.disabled = false;
+      btn.textContent = 'Unlock';
       if (ok) {
         document.getElementById('authOverlay').style.display = 'none';
       } else {
-        document.getElementById('authErr').textContent = 'Wrong password';
+        const err = document.getElementById('authErr');
+        err.textContent = 'Wrong password, please try again.';
+        document.getElementById('authBox').classList.add('shake');
+        setTimeout(() => document.getElementById('authBox').classList.remove('shake'), 500);
+        document.getElementById('pwdInp').value = '';
+        document.getElementById('pwdInp').focus();
       }
     };
 
@@ -39,6 +49,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Members List - Gym Admin</title>
   <script type="module" src="js/members.js"></script>
+  <script type="module" src="js/ui.js"></script>
   <link rel="stylesheet" href="resources/members.css">
 </head>
 <body>
@@ -56,7 +67,7 @@
     <a href="firebase_crud.html"> Register Member</a>
     <a href="members.html" class="active"> Members List</a>
     <a href="occupancy.html"> Gym Occupancy</a>
-    <a href="analytics.html" >Analytics</a>
+    <a href="analytics.html">Analytics</a>
     <a href="#" id="logout">Logout</a>
         <script type="module">
           import { AUTH } from './js/auth.js';
@@ -64,7 +75,7 @@
             e.preventDefault();
             AUTH.logout();
           };
-</script>
+        </script>
   </div>
 
   <div class="content">
@@ -81,7 +92,6 @@
       </div>
     </div>
 
-    
     <div class="summary-cards">
       <div class="summary-card active">
         <h3>Active Members</h3>
@@ -120,9 +130,7 @@
             <th>Actions</th>
           </tr>
         </thead>
-        <tbody id="memberTableBody">
-          
-        </tbody>
+        <tbody id="memberTableBody"></tbody>
       </table>
       
       <div id="emptyState" class="empty-state">
@@ -130,7 +138,6 @@
       </div>
     </div>
 
-   
     <div id="qrModal" class="modal">
       <div class="modal-content">
         <span class="close">&times;</span>
@@ -141,17 +148,13 @@
       </div>
     </div>
 
-   
     <div id="editModal" class="modal">
       <div class="modal-content large-modal">
-        
-
         <div class="edit-form"> 
            <div class="name">
             <div class="x"> 
               <span class="close-edit">&times;</span>
             </div>        
-            
               <div class="form-row">
                 <div class="form-group half-width">
                   <label for="editFirstName">First Name</label>
@@ -162,7 +165,6 @@
                   <input type="text" id="editLastName" placeholder="Last name">
                 </div>
               </div>
-
               <div class="form-row">
                 <div class="form-group half-width">
                   <label for="editPhone">Mobile</label>
@@ -177,16 +179,13 @@
         </div>
 
         <div class="edit-form">
-           
           <div class="payment-section">      
             <div class="current-membership-info">
               <p><strong>Type:</strong> <span id="currentMembershipTypeDisplay">Regular</span></p>
               <p><strong>Monthly Rate:</strong> ₱<span id="currentMonthlyRateDisplay">800</span></p>
               <p><strong>Current:</strong> <span id="currentDaysDisplay">0</span> days remaining</p>
-             
             </div>
             
-           
             <div class="form-group">
               <label for="editMembershipType">Extension Membership Type</label>
               <select id="editMembershipType" class="membership-type-select">
@@ -199,7 +198,11 @@
               <label for="editPayment">Additional Payment (₱)</label>
               <input type="number" id="editPayment" placeholder="800 per month" min="600" step="100">
             </div>
-          
+            <div class="form-group">
+              <label for="editMonths">Extension Duration: <span id="editMonthsDisplay">1 month</span></label>
+              <input type="range" id="editMonths" min="1" max="12" value="1" class="slider">
+              <div class="slider-labels"><span>1 mo</span><span>6 mo</span><span>12 mo</span></div>
+            </div>
           </div>
 
           <div class="payment-section">

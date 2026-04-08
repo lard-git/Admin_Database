@@ -1,8 +1,6 @@
 import { db } from './database_init.js';
-import { getDatabase, ref, set, get, update, remove, onValue} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { ref, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
-
-//dom elem
 const customersRef = ref(db, "Customers");
 const tableBody = document.getElementById("memberTableBody");
 const emptyState = document.getElementById("emptyState");
@@ -25,31 +23,28 @@ let currentLargeQR = '';
 let currentEditMember = null;
 let totalMonthlyRevenue = 0;
 
-
 document.addEventListener('DOMContentLoaded', function() {
     initEventListeners();
 });
-//modal
+
 function initEventListeners() {
-    
     if (closeModal) {
         closeModal.addEventListener('click', function() {
             if (qrModal) qrModal.style.display = 'none';
         });
     }
-    
-    const closeEditBtn = document.querySelector(".close-edit");
-    if (closeEditBtn) {
-        closeEditBtn.addEventListener('click', function() {
+
+    const closeEditBtns = document.querySelectorAll(".close-edit");
+    closeEditBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
             if (editModal) editModal.style.display = 'none';
             currentEditMember = null;
         });
-    }
-    
+    });
+
     if (downloadQR) {
         downloadQR.addEventListener('click', function() {
             if (!currentLargeQR) return;
-            
             const link = document.createElement('a');
             const fileName = `member-qr-${modalMemberInfo.textContent.split('UID: ')[1] || 'unknown'}.png`;
             link.download = fileName;
@@ -57,30 +52,27 @@ function initEventListeners() {
             link.click();
         });
     }
-    
-    
+
     const confirmEdit = document.getElementById("confirmEdit");
     if (confirmEdit) {
         confirmEdit.addEventListener('click', handleConfirmEdit);
     }
-    
-    
+
     if (searchBtn) {
         searchBtn.addEventListener('click', searchMembers);
     }
-    
+
     if (searchInput) {
         searchInput.addEventListener('keyup', function(event) {
             if (event.key === 'Enter') searchMembers();
         });
-        
+
         searchInput.addEventListener('input', function() {
             clearTimeout(this.searchTimeout);
             this.searchTimeout = setTimeout(searchMembers, 300);
         });
     }
-    
-    //closemodal
+
     window.addEventListener('click', function(event) {
         if (qrModal && event.target === qrModal) {
             qrModal.style.display = 'none';
@@ -92,111 +84,101 @@ function initEventListeners() {
     });
 }
 
-// edit price
 function getCurrentEditPrice() {
     const editMembershipType = document.getElementById("editMembershipType");
     if (!editMembershipType || !editMembershipType.options) return 800;
-    
     const selectedOption = editMembershipType.options[editMembershipType.selectedIndex];
     if (!selectedOption) return 800;
-    
     return parseInt(selectedOption.getAttribute('data-price')) || 800;
 }
 
-//edit payment display 
 function updateEditPaymentDisplay(months, currentPayment = 0, currentMonths = 0) {
     const currentPrice = getCurrentEditPrice();
     const additionalPayment = months * currentPrice;
     const newTotalPayment = currentPayment + additionalPayment;
     const newTotalMonths = currentMonths + months;
-    
+
     const editMonthsDisplay = document.getElementById("editMonthsDisplay");
     const editSelectedMonths = document.getElementById("editSelectedMonths");
     const editTotalAmount = document.getElementById("editTotalAmount");
-    
+
     if (editMonthsDisplay) editMonthsDisplay.textContent = months + ' month' + (months > 1 ? 's' : '');
     if (editSelectedMonths) editSelectedMonths.textContent = months;
     if (editTotalAmount) editTotalAmount.textContent = additionalPayment.toLocaleString();
-    
+
     const newTotalPaymentEl = document.getElementById('newTotalPayment');
     const newTotalMonthsEl = document.getElementById('newTotalMonths');
     if (newTotalPaymentEl) newTotalPaymentEl.textContent = newTotalPayment.toLocaleString();
     if (newTotalMonthsEl) newTotalMonthsEl.textContent = newTotalMonths;
 }
 
-//modallisterners
 function setupEditModalListeners() {
     const editMembershipType = document.getElementById("editMembershipType");
     const editPayment = document.getElementById("editPayment");
     const editMonths = document.getElementById("editMonths");
-    
+
     if (editMembershipType) {
-      
         const newSelect = editMembershipType.cloneNode(true);
         editMembershipType.parentNode.replaceChild(newSelect, editMembershipType);
-        
+
         const newEditMembershipType = document.getElementById("editMembershipType");
-        
+
         newEditMembershipType.addEventListener('change', function() {
             const selectedOption = this.options[this.selectedIndex];
             if (!selectedOption) return;
-            
+
             const price = selectedOption.getAttribute('data-price') || '800';
             const typeText = selectedOption.text.split(' - ')[0] || 'Regular';
-            
+
             const editMonthlyRateDisplay = document.getElementById("editMonthlyRateDisplay");
             const editMembershipTypeDisplay = document.getElementById("editMembershipTypeDisplay");
-            
+
             if (editMonthlyRateDisplay) editMonthlyRateDisplay.textContent = price;
             if (editMembershipTypeDisplay) editMembershipTypeDisplay.textContent = typeText;
-            
-           
+
             if (editPayment) {
                 editPayment.min = price;
                 editPayment.step = price;
                 editPayment.placeholder = `${price} per month`;
             }
-            
+
             const months = editMonths ? parseInt(editMonths.value) : 1;
-            updateEditPaymentDisplay(months, 
+            updateEditPaymentDisplay(months,
                 currentEditMember?.membership?.payment_amount || 0,
                 currentEditMember?.membership?.months_paid || 0
             );
         });
     }
-    
+
     if (editPayment) {
         editPayment.addEventListener('input', function() {
             const payment = parseInt(this.value) || 0;
             const currentPrice = getCurrentEditPrice();
             const calculatedMonths = Math.floor(payment / currentPrice);
             const maxMonths = 12;
-            
+
             if (calculatedMonths > 0) {
                 const months = Math.min(calculatedMonths, maxMonths);
                 if (editMonths) editMonths.value = months;
-                
-                
+
                 const currentMembership = currentEditMember?.membership || {};
-                const currentPayment = currentMembership.payment_amount || 0;
-                const currentMonths = currentMembership.months_paid || 0;
-                
-                updateEditPaymentDisplay(months, currentPayment, currentMonths);
+                updateEditPaymentDisplay(months,
+                    currentMembership.payment_amount || 0,
+                    currentMembership.months_paid || 0
+                );
             }
         });
     }
-    
+
     if (editMonths) {
         editMonths.addEventListener('input', function() {
             const months = parseInt(this.value);
-            
-           
             const currentMembership = currentEditMember?.membership || {};
-            const currentPayment = currentMembership.payment_amount || 0;
-            const currentMonths = currentMembership.months_paid || 0;
-            
-            updateEditPaymentDisplay(months, currentPayment, currentMonths);
-            
+            updateEditPaymentDisplay(months,
+                currentMembership.payment_amount || 0,
+                currentMembership.months_paid || 0
+            );
+
             const currentPrice = getCurrentEditPrice();
             const paymentAmount = months * currentPrice;
             if (editPayment) editPayment.value = paymentAmount;
@@ -204,20 +186,20 @@ function setupEditModalListeners() {
     }
 }
 
-// Realtime listener
 onValue(customersRef, (snapshot) => {
     allMembers = [];
     tableBody.innerHTML = "";
-    
+
     if (!snapshot.exists()) {
         emptyState.style.display = 'block';
-        updateSummaryCards(0, 0, 0, 0, 0);
+        updateSummaryCards([], 0);
         return;
     }
-    
+
     emptyState.style.display = 'none';
-    
+
     snapshot.forEach(child => {
+        if (child.key.startsWith('WALKIN_')) return;
         const data = child.val();
         const member = {
             key: child.key,
@@ -228,59 +210,33 @@ onValue(customersRef, (snapshot) => {
             membership: data.membership || {},
             personal_info: data.personal_info || {}
         };
-        
         allMembers.push(member);
     });
-    
-    // monthlyrev
+
     totalMonthlyRevenue = allMembers.reduce((sum, m) => sum + (m.membership.payment_amount || 0), 0);
-    
+
     updateSummaryCards(allMembers, totalMonthlyRevenue);
     renderMembers(allMembers);
 });
 
-
 function updateSummaryCards(members, revenue = totalMonthlyRevenue) {
-    console.log("Updating summary cards with", members.length, "members");
-    
     let active = 0;
     let expiring = 0;
     let expired = 0;
-    
+
     members.forEach(m => {
-        const status = m.membership?.status || 'active';
-        const remainingDays = m.membership?.remaining_days;
+        // Use the same function that renderMembers uses to calculate remaining days
+        const remainingDays = getActualRemainingDays(m);
         
-     
-        console.log(`Member: ${m.firstname} ${m.lastname}, Status: ${status}, Remaining Days: ${remainingDays}`);
-        
-     
-        if (status === 'expired') {
+        if (remainingDays <= 0) {
             expired++;
-            console.log(`  -> Counted as EXPIRED (status = expired)`);
-        } 
-        
-        else if (remainingDays !== undefined) {
-            if (remainingDays <= 0) {
-                expired++;
-                console.log(`  -> Counted as EXPIRED (remainingDays <= 0)`);
-            } else if (remainingDays <= 7) {
-                expiring++;
-                console.log(`  -> Counted as EXPIRING (remainingDays <= 7)`);
-            } else {
-                active++;
-                console.log(`  -> Counted as ACTIVE (remainingDays > 7)`);
-            }
-        } 
-        
-        else {
+        } else if (remainingDays <= 7) {
+            expiring++;
+        } else {
             active++;
-            console.log(`  -> Counted as ACTIVE (no remainingDays info)`);
         }
     });
-    
-    console.log(`Final counts: Active=${active}, Expiring=${expiring}, Expired=${expired}`);
-    
+
     if (memberCount) memberCount.textContent = members.length;
     if (activeCount) activeCount.textContent = active;
     if (expiringCount) expiringCount.textContent = expiring;
@@ -289,43 +245,45 @@ function updateSummaryCards(members, revenue = totalMonthlyRevenue) {
 }
 
 function getActualRemainingDays(member) {
-    
-    if (member.membership?.status === 'expired') {
-        return 0;
-    }
-    
+    if (member.membership?.status === 'expired') return 0;
+
     if (!member.membership?.end_date) {
+        if (member.membership?.start_date && member.membership?.months_paid) {
+            const start = new Date(member.membership.start_date);
+            const end = new Date(start);
+            end.setMonth(end.getMonth() + (member.membership.months_paid || 1));
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return Math.max(0, Math.ceil((end - today) / (1000 * 60 * 60 * 24)));
+        }
         return member.membership?.remaining_days || 0;
     }
-    
+
     try {
         const endDate = new Date(member.membership.end_date);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
         const remaining = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
-        
         return Math.max(0, remaining);
     } catch (e) {
         return member.membership?.remaining_days || 0;
     }
 }
 
-// Render members to table
 function renderMembers(members) {
     tableBody.innerHTML = "";
-    
+
     if (members.length === 0) {
         emptyState.style.display = 'block';
         return;
     }
-    
+
     emptyState.style.display = 'none';
-    
+
     members.forEach(member => {
         const fullname = `${member.firstname} ${member.lastname}`;
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${member.uid}`;
-        
+
         const membership = member.membership || {};
         const remainingDays = getActualRemainingDays(member);
         const status = membership.status || 'unknown';
@@ -333,18 +291,17 @@ function renderMembers(members) {
         const endDate = membership.end_date || 'N/A';
         const payment = membership.payment_amount || 0;
         const months = membership.months_paid || 0;
-        
-     
+
         const membershipType = member.personal_info?.membership_type || member.membership?.plan || 'regular';
-        const membershipTypeDisplay = member.membership?.plan_display || 
-                                    (membershipType === 'student' ? 'Student' : 'Regular');
-        const monthlyRate = member.membership?.monthly_rate || 
-                          (membershipType === 'student' ? 600 : 800);
-        
+        const membershipTypeDisplay = member.membership?.plan_display ||
+            (membershipType === 'student' ? 'Student' : 'Regular');
+        const monthlyRate = member.membership?.monthly_rate ||
+            (membershipType === 'student' ? 600 : 800);
+
         let statusClass = 'status-active';
         let statusText = 'Active';
         let daysClass = 'days-safe';
-        
+
         if (status === 'expired' || remainingDays <= 0) {
             statusClass = 'status-expired';
             statusText = 'Expired';
@@ -357,7 +314,7 @@ function renderMembers(members) {
             statusText = `${remainingDays} days left`;
             daysClass = 'days-safe';
         }
-        
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td><strong>${member.uid}</strong></td>
@@ -372,7 +329,7 @@ function renderMembers(members) {
             <td>${months} month${months !== 1 ? 's' : ''}</td>
             <td>₱${monthlyRate}</td>
             <td>
-                <img src="${qrUrl}" class="qr-small" alt="QR Code" 
+                <img src="${qrUrl}" class="qr-small" alt="QR Code"
                      onclick="showQRModal('${member.uid}', '${fullname.replace(/'/g, "\\'")}')">
             </td>
             <td>
@@ -382,33 +339,27 @@ function renderMembers(members) {
                 </div>
             </td>
         `;
-        
+
         tableBody.appendChild(row);
     });
 }
 
-
 function showQRModal(uid, name) {
     const largeQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${uid}`;
     currentLargeQR = largeQrUrl;
-    
+
     if (modalQrContainer) modalQrContainer.innerHTML = `<img src="${largeQrUrl}" alt="QR Code for ${name}">`;
     if (modalMemberInfo) modalMemberInfo.textContent = `${name} (UID: ${uid})`;
     if (qrModal) qrModal.style.display = 'block';
 }
 
-
 function openEditModal(memberKey, name, uid) {
-   
     const member = allMembers.find(m => m.key === memberKey);
     if (!member) return;
-    
+
     currentEditMember = member;
-    
-    
     setupEditModalListeners();
-    
-    //fill form with mem data
+
     const editFirstName = document.getElementById("editFirstName");
     const editLastName = document.getElementById("editLastName");
     const editPhone = document.getElementById("editPhone");
@@ -416,137 +367,115 @@ function openEditModal(memberKey, name, uid) {
     const editPayment = document.getElementById("editPayment");
     const editMonths = document.getElementById("editMonths");
     const editMembershipType = document.getElementById("editMembershipType");
-    
+
     if (editFirstName) editFirstName.value = member.firstname || '';
     if (editLastName) editLastName.value = member.lastname || '';
     if (editPhone) editPhone.value = member.phone || '';
     if (editUID) editUID.value = member.uid || '';
-    
-    //current mem data
+
     const currentMembership = member.membership || {};
     const currentPayment = currentMembership.payment_amount || 0;
     const currentMonths = currentMembership.months_paid || 0;
     const currentDays = getActualRemainingDays(member);
     const currentType = currentMembership.plan || member.personal_info?.membership_type || 'regular';
-    const currentTypeDisplay = currentMembership.plan_display || 
-                              (currentType === 'student' ? 'Student' : 'Regular');
-    const currentMonthlyRate = currentMembership.monthly_rate || 
-                             (currentType === 'student' ? 600 : 800);
-    
-    //displaymeminfo
+    const currentTypeDisplay = currentMembership.plan_display ||
+        (currentType === 'student' ? 'Student' : 'Regular');
+    const currentMonthlyRate = currentMembership.monthly_rate ||
+        (currentType === 'student' ? 600 : 800);
+
     const currentTypeDisplayEl = document.getElementById('currentMembershipTypeDisplay');
     const currentRateDisplayEl = document.getElementById('currentMonthlyRateDisplay');
     const currentDaysDisplayEl = document.getElementById('currentDaysDisplay');
-    const currentPaymentDisplayEl = document.getElementById('currentPaymentDisplay');
-    const currentMonthsDisplayEl = document.getElementById('currentMonthsDisplay');
-    
+
     if (currentTypeDisplayEl) currentTypeDisplayEl.textContent = currentTypeDisplay;
     if (currentRateDisplayEl) currentRateDisplayEl.textContent = currentMonthlyRate;
     if (currentDaysDisplayEl) currentDaysDisplayEl.textContent = currentDays;
-    if (currentPaymentDisplayEl) currentPaymentDisplayEl.textContent = currentPayment.toLocaleString();
-    if (currentMonthsDisplayEl) currentMonthsDisplayEl.textContent = currentMonths;
-    
-    
+
     if (editMembershipType) {
         editMembershipType.value = currentType;
-        
-        
         setTimeout(() => {
-            const event = new Event('change');
-            editMembershipType.dispatchEvent(event);
+            editMembershipType.dispatchEvent(new Event('change'));
         }, 100);
     }
-    
+
     if (editPayment) editPayment.value = currentMonthlyRate;
     if (editMonths) editMonths.value = 1;
     updateEditPaymentDisplay(1, currentPayment, currentMonths);
-    
+
     if (editModal) editModal.style.display = 'block';
 }
 
-//edit
 async function handleConfirmEdit() {
     if (!currentEditMember) return;
-    
-    
+
     const editFirstName = document.getElementById("editFirstName");
     const editLastName = document.getElementById("editLastName");
     const editPhone = document.getElementById("editPhone");
     const editPayment = document.getElementById("editPayment");
     const editMonths = document.getElementById("editMonths");
     const editMembershipType = document.getElementById("editMembershipType");
-    
-    
-    if (!editFirstName || !editFirstName.value.trim() || !editLastName || !editLastName.value.trim()) {
+
+    if (!editFirstName?.value.trim() || !editLastName?.value.trim()) {
         alert("Please enter both first and last name");
         return;
     }
-    
-    if (!editPhone || !editPhone.value.trim()) {
+
+    const editPhoneVal = editPhone?.value.trim();
+    if (!editPhoneVal) {
         alert("Please enter mobile number");
+        return;
+    }
+    if (!/^\d{11}$/.test(editPhoneVal)) {
+        alert("Mobile number must be exactly 11 digits (numbers only)");
+        editPhone.focus();
         return;
     }
 
     const currentPrice = getCurrentEditPrice();
-    if (!editPayment || !editPayment.value.trim() || parseInt(editPayment.value) < currentPrice) {
+    if (!editPayment?.value.trim() || parseInt(editPayment.value) < currentPrice) {
         alert(`Please enter payment amount (minimum ₱${currentPrice})`);
         return;
     }
-    // calculation for renew?/edit
+
     try {
         const newPaymentAmount = parseInt(editPayment.value) || currentPrice;
-        const newMonths = parseInt(editMonths.value) || 1;
-        const extensionType = editMembershipType ? editMembershipType.value : 'regular';
-        const extensionTypeText = editMembershipType ? editMembershipType.options[editMembershipType.selectedIndex].text.split(' - ')[0] : 'Regular';
-        
-        
+        const newMonths = parseInt(editMonths?.value) || 1;
+        const extensionType = editMembershipType?.value || 'regular';
+        const extensionTypeText = editMembershipType ?
+            editMembershipType.options[editMembershipType.selectedIndex].text.split(' - ')[0] : 'Regular';
+
         const memberRef = ref(db, `Customers/${currentEditMember.key}`);
         const snapshot = await get(memberRef);
         const memberData = snapshot.val();
-        
+
         const currentMembership = memberData.membership || {};
-        
-        
         let currentEndDate;
         let currentRemainingDays = currentMembership.remaining_days || 0;
-        
+
         if (currentMembership.end_date && currentRemainingDays > 0) {
-            // Extend from existing end date
             currentEndDate = new Date(currentMembership.end_date);
         } else {
-            // Start from today if expired
             currentEndDate = new Date();
             currentRemainingDays = 0;
         }
-        
-       
+
         const newEndDate = new Date(currentEndDate);
         newEndDate.setMonth(newEndDate.getMonth() + newMonths);
-        
-        // Calculate total remaining days
+
         const totalRemainingDays = Math.ceil((newEndDate - new Date()) / (1000 * 60 * 60 * 24));
-        
-        // Calculate total months paid (current + new)
-        const currentMonths = currentMembership.months_paid || 0;
-        const totalMonths = currentMonths + newMonths;
-        
-        // Calculate total payment (current + new)
-        const currentPayment = currentMembership.payment_amount || 0;
-        const totalPayment = currentPayment + newPaymentAmount;
-        
-        // Update membership type if changed
+        const currentMonthsTotal = currentMembership.months_paid || 0;
+        const totalMonths = currentMonthsTotal + newMonths;
+        const currentPaymentTotal = currentMembership.payment_amount || 0;
+        const totalPayment = currentPaymentTotal + newPaymentAmount;
         const newMonthlyRate = getCurrentEditPrice();
-        const newPlan = extensionType;
-        const newPlanDisplay = extensionTypeText;
 
         await update(ref(db, `Customers/${currentEditMember.key}`), {
             "personal_info/firstname": editFirstName.value.trim(),
             "personal_info/lastname": editLastName.value.trim(),
             "personal_info/phone": editPhone.value.trim(),
-            "personal_info/membership_type": newPlan,
-            
-            "membership/plan": newPlan,
-            "membership/plan_display": newPlanDisplay,
+            "personal_info/membership_type": extensionType,
+            "membership/plan": extensionType,
+            "membership/plan_display": extensionTypeText,
             "membership/monthly_rate": newMonthlyRate,
             "membership/payment_amount": totalPayment,
             "membership/months_paid": totalMonths,
@@ -557,16 +486,15 @@ async function handleConfirmEdit() {
             "membership/status": "active"
         });
 
-        alert(`Member Updated Successfully!\n\nPersonal info updated\nNew Membership Type: ${newPlanDisplay}\nMonthly Rate: ₱${newMonthlyRate}\nPayment added: ₱${newPaymentAmount}\nDuration added: ${newMonths} month(s)\nPrevious days: ${currentRemainingDays}\nNew total: ${totalRemainingDays} days remaining`);
+        alert(`Member Updated!\nNew total: ${totalRemainingDays} days remaining`);
         if (editModal) editModal.style.display = 'none';
         currentEditMember = null;
-        
+
     } catch (error) {
         alert('Error updating member: ' + error.message);
     }
 }
 
-// Delete member function
 async function deleteMember(memberKey, name) {
     if (confirm(`Are you sure you want to delete member: ${name}?\nThis action cannot be undone.`)) {
         try {
@@ -578,25 +506,23 @@ async function deleteMember(memberKey, name) {
     }
 }
 
-// Search functionality
 function searchMembers() {
     const searchTerm = searchInput.value.toLowerCase().trim();
     if (!searchTerm) {
         renderMembers(allMembers);
-        return;   // totals stay global
+        return;
     }
     const filtered = allMembers.filter(member => {
         const fullName = `${member.firstname} ${member.lastname}`.toLowerCase();
         const uid = (member.uid || '').toString().toLowerCase();
         const phone = (member.phone || '').toString().toLowerCase();
         return uid.includes(searchTerm) ||
-               fullName.includes(searchTerm) ||
-               member.firstname.toLowerCase().includes(searchTerm) ||
-               member.lastname.toLowerCase().includes(searchTerm) ||
-               phone.includes(searchTerm);
+            fullName.includes(searchTerm) ||
+            member.firstname.toLowerCase().includes(searchTerm) ||
+            member.lastname.toLowerCase().includes(searchTerm) ||
+            phone.includes(searchTerm);
     });
     renderMembers(filtered);
-    
 }
 
 window.showQRModal = showQRModal;

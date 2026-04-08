@@ -1,5 +1,6 @@
 import { db } from './database_init.js';
 import { ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { addRevenue } from './database_init.js';
 
 // DOM Elements
 const memberUidInput = document.getElementById('memberUidInput');
@@ -175,6 +176,7 @@ async function handleDayPassIn() {
     const walkinKey = `WALKIN_${today}_${timestamp}`;
     const checkInTime = now.toISOString();
     const walkinId = timestamp.toString().slice(-4);
+    const WALKIN_FEE = 40;  // ₱40 per walk-in
     
     const walkinData = {
         personal_info: {
@@ -207,7 +209,15 @@ async function handleDayPassIn() {
     
     try {
         await set(ref(db, `Customers/${walkinKey}`), walkinData);
-        showMessage(`Walk-in checked IN! ID: ${walkinId}`, 'success');
+        
+        // ADD REVENUE TRACKING FOR WALK-IN
+        await addRevenue(WALKIN_FEE, 'walkin', {
+            walkin_id: walkinId,
+            date: today,
+            time: checkInTime
+        });
+        
+        showMessage(`Walk-in checked IN! ID: ${walkinId} (₱${WALKIN_FEE})`, 'success');
     } catch (error) {
         showMessage('Check-in error: ' + error.message, 'error');
     }
