@@ -1,8 +1,6 @@
 import { db } from './database_init.js';
 import { ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
-import { addRevenue } from './database_init.js';
 
-// DOM Elements
 const memberUidInput = document.getElementById('memberUidInput');
 const checkInOutBtn = document.getElementById('checkInOutBtn');
 const checkinMessage = document.getElementById('checkinMessage');
@@ -24,52 +22,42 @@ let allWalkins = {};
 let todayActivities = [];
 let currentOccupancyCount = 0;
 
-// Day pass QR codes
 const DAYPASS_IN = 'DAYPASS_IN';
 const DAYPASS_OUT = 'DAYPASS_OUT';
 
-// Initialize
 function init() {
     loadMembers();
     focusOnInput();
-    
+
     memberUidInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            handleCheckInOut();
-        }
+        if (e.key === 'Enter') handleCheckInOut();
     });
-    
+
     checkInOutBtn.addEventListener('click', handleCheckInOut);
     refreshActivity.addEventListener('click', updateTodayActivity);
     clearActivity.addEventListener('click', clearTodayActivity);
 }
 
-// Load all data
 function loadMembers() {
     const membersRef = ref(db, 'Customers');
-    
+
     onValue(membersRef, (snapshot) => {
         allMembers = [];
         allWalkins = {};
-        
+
         if (snapshot.exists()) {
             snapshot.forEach(child => {
                 const key = child.key;
                 const data = child.val();
-                
+
                 if (key.startsWith('WALKIN_')) {
-                    allWalkins[key] = {
-                        key: key,
-                        ...data,
-                        is_walkin: true
-                    };
+                    allWalkins[key] = { key, ...data, is_walkin: true };
                 } else {
-                    const member = normalizeMemberData(key, data);
-                    allMembers.push(member);
+                    allMembers.push(normalizeMemberData(key, data));
                 }
             });
         }
-        
+
         updateOccupancyDisplay();
         updateTodayActivity();
         updateStats();
@@ -78,67 +66,52 @@ function loadMembers() {
 
 function normalizeMemberData(key, data) {
     const uid = data.gym_data?.uid || data.personal_info?.uid || data.uid || key;
-    const firstname = data.personal_info?.firstname || '';
-    const lastname = data.personal_info?.lastname || '';
-    const phone = data.personal_info?.phone || '';
-    
-    const gym_data = {
-        is_checked_in: data.gym_data?.is_checked_in || false,
-        last_checkin: data.gym_data?.last_checkin || null,
-        last_checkout: data.gym_data?.last_checkout || null,
-        total_visits: data.gym_data?.total_visits || 0,
-        total_time_spent: data.gym_data?.total_time_spent || 0,
-        uid: uid
-    };
-    
-    const membership = data.membership || {
-        status: 'active',
-        remaining_days: 30,
-        start_date: '',
-        end_date: ''
-    };
-    
+
     return {
-        key: key,
-        uid: uid,
-        firstname: firstname,
-        lastname: lastname,
-        phone: phone,
-        membership: membership,
-        gym_data: gym_data,
+        key,
+        uid,
+        firstname: data.personal_info?.firstname || '',
+        lastname: data.personal_info?.lastname || '',
+        phone: data.personal_info?.phone || '',
+        membership: data.membership || { status: 'active', remaining_days: 30, start_date: '', end_date: '' },
+        gym_data: {
+            is_checked_in: data.gym_data?.is_checked_in || false,
+            last_checkin: data.gym_data?.last_checkin || null,
+            last_checkout: data.gym_data?.last_checkout || null,
+            total_visits: data.gym_data?.total_visits || 0,
+            total_time_spent: data.gym_data?.total_time_spent || 0,
+            uid
+        },
         attendance_history: data.attendance_history || []
     };
 }
 
-// Handle check-in/check-out
 async function handleCheckInOut() {
     const uid = memberUidInput.value.trim();
-    
+
     if (!uid) {
         showMessage('Please enter a member UID', 'error');
         return;
     }
-    
-    // Check for day pass codes
+
     if (uid === DAYPASS_IN) {
         await handleDayPassIn();
         memberUidInput.value = '';
         memberUidInput.focus();
         return;
     }
-    
+
     if (uid === DAYPASS_OUT) {
         await handleDayPassOut();
         memberUidInput.value = '';
         memberUidInput.focus();
         return;
     }
-    
-    // Regular member
-    const member = allMembers.find(m => 
-        m.uid === uid || m.key === uid || m.gym_data?.uid === uid
+
+    const member = allMembers.find(m =>
+        m.uid === uid || m.key === uid || String(m.gym_data?.uid) === uid
     );
-    
+
     if (!member) {
         showMessage('Member not found. Please check the UID.', 'error');
         return;
@@ -153,14 +126,13 @@ async function handleCheckInOut() {
     if (membership.remaining_days !== undefined && membership.remaining_days <= 7) {
         showMessage(`Warning: Membership expires in ${membership.remaining_days} days`, 'warning');
     }
-    
+
     try {
         if (member.gym_data.is_checked_in) {
             await checkOutMember(member);
         } else {
             await checkInMember(member);
         }
-        
         memberUidInput.value = '';
         memberUidInput.focus();
     } catch (error) {
@@ -168,197 +140,118 @@ async function handleCheckInOut() {
     }
 }
 
-// DAY PASS IN - Always creates new walk-in
 async function handleDayPassIn() {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const timestamp = now.getTime();
     const walkinKey = `WALKIN_${today}_${timestamp}`;
-    const checkInTime = now.toISOString();
     const walkinId = timestamp.toString().slice(-4);
-    const WALKIN_FEE = 40;  // ₱40 per walk-in
-    
-    const walkinData = {
-        personal_info: {
-            firstname: "WALK-IN",
-            lastname: `#${walkinId}`,
-            uid: walkinKey,
-            type: "daypass"
-        },
-        gym_data: {
-            is_checked_in: true,
-            last_checkin: checkInTime,
-            last_checkout: null,
-            total_visits: 1,
-            total_time_spent: 0,
-            uid: walkinKey
-        },
-        membership: {
-            status: "active",
-            remaining_days: 1,
-            start_date: today,
-            end_date: today
-        },
-        attendance_history: [{
-            checkin: checkInTime,
-            checkout: null,
-            time_spent: null,
-            date: today
-        }]
-    };
-    
-    try {
-        await set(ref(db, `Customers/${walkinKey}`), walkinData);
-        
-        // ADD REVENUE TRACKING FOR WALK-IN
-        await addRevenue(WALKIN_FEE, 'walkin', {
-            walkin_id: walkinId,
-            date: today,
-            time: checkInTime
-        });
-        
-        showMessage(`Walk-in checked IN! ID: ${walkinId} (₱${WALKIN_FEE})`, 'success');
-    } catch (error) {
-        showMessage('Check-in error: ' + error.message, 'error');
-    }
+
+    await set(ref(db, `Customers/${walkinKey}`), {
+        personal_info: { firstname: "WALK-IN", lastname: `#${walkinId}`, uid: walkinKey, type: "daypass" },
+        gym_data: { is_checked_in: true, last_checkin: now.toISOString(), last_checkout: null, total_visits: 1, total_time_spent: 0, uid: walkinKey },
+        membership: { status: "active", remaining_days: 1, start_date: today, end_date: today },
+        attendance_history: [{ checkin: now.toISOString(), checkout: null, time_spent: null, date: today }]
+    });
+
+    showMessage(`Walk-in checked IN! ID: ${walkinId}`, 'success');
 }
 
-// DAY PASS OUT - Checks out most recent active walk-in (FIFO)
 async function handleDayPassOut() {
     const now = new Date();
     const today = now.toISOString().split('T')[0];
-    
-    // Find all active walk-ins from today
-    const activeWalkins = [];
-    Object.entries(allWalkins).forEach(([key, data]) => {
-        if (key.includes(today) && data.gym_data?.is_checked_in === true) {
-            activeWalkins.push({
-                key: key,
-                data: data,
-                checkinTime: new Date(data.gym_data.last_checkin).getTime()
-            });
-        }
-    });
-    
+
+    const activeWalkins = Object.entries(allWalkins)
+        .filter(([key, data]) => key.includes(today) && data.gym_data?.is_checked_in === true)
+        .map(([key, data]) => ({ key, data, checkinTime: new Date(data.gym_data.last_checkin).getTime() }))
+        .sort((a, b) => a.checkinTime - b.checkinTime);
+
     if (activeWalkins.length === 0) {
         showMessage('No active walk-ins to check out', 'warning');
         return;
     }
-    
-    // Sort by check-in time (oldest first) and pick the oldest
-    activeWalkins.sort((a, b) => a.checkinTime - b.checkinTime);
-    const oldestWalkin = activeWalkins[0];
-    
-    const checkOutTime = now.toISOString();
-    const timeSpent = Math.round((now - oldestWalkin.checkinTime) / (1000 * 60));
-    
+
+    const oldest = activeWalkins[0];
+    const timeSpent = Math.round((now - oldest.checkinTime) / (1000 * 60));
+    const history = oldest.data.attendance_history || [];
+
     const updates = {
         "gym_data/is_checked_in": false,
-        "gym_data/last_checkout": checkOutTime,
+        "gym_data/last_checkout": now.toISOString(),
         "gym_data/time_spent": timeSpent,
         "membership/status": "completed"
     };
-    
-    // Update attendance history
-    const history = oldestWalkin.data.attendance_history || [];
+
     if (history.length > 0 && !history[0].checkout) {
-        history[0].checkout = checkOutTime;
+        history[0].checkout = now.toISOString();
         history[0].time_spent = timeSpent;
         updates.attendance_history = history;
     }
-    
-    try {
-        await update(ref(db, `Customers/${oldestWalkin.key}`), updates);
-        const walkinId = oldestWalkin.key.split('_').pop().slice(-4);
-        showMessage(`Walk-out recorded! ID: ${walkinId}, Time: ${timeSpent}m`, 'info');
-    } catch (error) {
-        showMessage('Check-out error: ' + error.message, 'error');
-    }
+
+    await update(ref(db, `Customers/${oldest.key}`), updates);
+    showMessage(`Walk-out recorded! Time: ${timeSpent}m`, 'info');
 }
 
-// Regular member check in
 async function checkInMember(member) {
     const now = new Date();
     const checkInTime = now.toISOString();
-    
-    const updates = {
+    const history = [...(member.attendance_history || [])];
+    history.unshift({ checkin: checkInTime, checkout: null, time_spent: null, date: now.toISOString().split('T')[0] });
+
+    await update(ref(db, `Customers/${member.key}`), {
         "gym_data/is_checked_in": true,
-        "gym_data/last_checkin": checkInTime
-    };
-    
-    const newVisit = {
-        checkin: checkInTime,
-        checkout: null,
-        time_spent: null,
-        date: now.toISOString().split('T')[0]
-    };
-    
-    const history = member.attendance_history || [];
-    history.unshift(newVisit);
-    updates.attendance_history = history.slice(0, 100);
-    
-    await update(ref(db, `Customers/${member.key}`), updates);
+        "gym_data/last_checkin": checkInTime,
+        attendance_history: history.slice(0, 100)
+    });
+
     showMessage(`${member.firstname} ${member.lastname} checked in!`, 'success');
 }
 
-// Regular member check out
 async function checkOutMember(member) {
     const now = new Date();
-    const checkOutTime = now.toISOString();
     const lastCheckIn = member.gym_data.last_checkin ? new Date(member.gym_data.last_checkin) : new Date();
     const timeSpent = Math.round((now - lastCheckIn) / (1000 * 60));
-    
-    const updates = {
-        "gym_data/is_checked_in": false,
-        "gym_data/last_checkout": checkOutTime
-    };
-    
-    const history = member.attendance_history || [];
+    const history = [...(member.attendance_history || [])];
+
     if (history.length > 0 && !history[0].checkout) {
-        history[0].checkout = checkOutTime;
+        history[0].checkout = now.toISOString();
         history[0].time_spent = timeSpent;
-        updates.attendance_history = history;
     }
-    
-    const currentTotal = member.gym_data.total_time_spent || 0;
-    updates["gym_data/total_time_spent"] = currentTotal + timeSpent;
-    
-    const currentVisits = member.gym_data.total_visits || 0;
-    updates["gym_data/total_visits"] = currentVisits + 1;
-    
-    await update(ref(db, `Customers/${member.key}`), updates);
+
+    await update(ref(db, `Customers/${member.key}`), {
+        "gym_data/is_checked_in": false,
+        "gym_data/last_checkout": now.toISOString(),
+        "gym_data/total_time_spent": (member.gym_data.total_time_spent || 0) + timeSpent,
+        "gym_data/total_visits": (member.gym_data.total_visits || 0) + 1,
+        attendance_history: history
+    });
+
     showMessage(`${member.firstname} ${member.lastname} checked out. Time: ${timeSpent}m`, 'info');
 }
 
 function updateOccupancyDisplay() {
     const checkedInMembers = allMembers.filter(m => m.gym_data.is_checked_in);
-    const activeWalkins = Object.values(allWalkins).filter(w => 
-        w.gym_data?.is_checked_in === true
-    );
-    
-    const totalCount = checkedInMembers.length + activeWalkins.length;
+    const activeWalkinsArr = Object.values(allWalkins).filter(w => w.gym_data?.is_checked_in === true);
+    const totalCount = checkedInMembers.length + activeWalkinsArr.length;
     currentOccupancyCount = totalCount;
-    
+
     currentOccupancy.textContent = totalCount;
     currentCountBadge.textContent = totalCount;
-    
-    if (checkedInMembers.length === 0 && activeWalkins.length === 0) {
+
+    if (totalCount === 0) {
         currentMembersList.innerHTML = '';
         emptyOccupancy.style.display = 'block';
         return;
     }
-    
+
     emptyOccupancy.style.display = 'none';
-    
-    let html = '';
-    
-    // Regular members
-    html += checkedInMembers.map(member => {
+
+    let html = checkedInMembers.map(member => {
         const checkInTime = member.gym_data.last_checkin ? new Date(member.gym_data.last_checkin) : new Date();
         const duration = Math.round((new Date() - checkInTime) / (1000 * 60));
         const membershipClass = getMembershipClass(member.membership);
         const membershipStatus = getMembershipStatus(member.membership);
-        
+
         return `
             <div class="member-card ${membershipClass}">
                 <div class="member-info">
@@ -366,20 +259,15 @@ function updateOccupancyDisplay() {
                     <div class="member-uid">UID: ${member.uid}</div>
                     <div class="member-membership ${membershipClass}">${membershipStatus}</div>
                 </div>
-                <div class="checkin-time">
-                    ${checkInTime.toLocaleTimeString()}<br>
-                    (${duration}m ago)
-                </div>
-            </div>
-        `;
+                <div class="checkin-time">${checkInTime.toLocaleTimeString()}<br>(${duration}m ago)</div>
+            </div>`;
     }).join('');
-    
-    // Walk-ins
-    html += activeWalkins.map(walkin => {
+
+    html += activeWalkinsArr.map(walkin => {
         const checkInTime = new Date(walkin.gym_data.last_checkin);
         const duration = Math.round((new Date() - checkInTime) / (1000 * 60));
         const walkinId = walkin.key.split('_').pop().slice(-4);
-        
+
         return `
             <div class="member-card walkin-card">
                 <div class="member-info">
@@ -387,25 +275,19 @@ function updateOccupancyDisplay() {
                     <div class="member-uid">DAY PASS</div>
                     <div class="member-membership membership-active">Active Session</div>
                 </div>
-                <div class="checkin-time">
-                    ${checkInTime.toLocaleTimeString()}<br>
-                    (${duration}m ago)
-                </div>
-            </div>
-        `;
+                <div class="checkin-time">${checkInTime.toLocaleTimeString()}<br>(${duration}m ago)</div>
+            </div>`;
     }).join('');
-    
+
     currentMembersList.innerHTML = html;
 }
 
 function updateTodayActivity() {
     const today = new Date().toDateString();
     let allActivities = [];
-    
-    // Member activities
+
     allMembers.forEach(member => {
-        const history = member.attendance_history || [];
-        history.forEach(visit => {
+        (member.attendance_history || []).forEach(visit => {
             if (visit.checkin && new Date(visit.checkin).toDateString() === today) {
                 allActivities.push({
                     type: 'member',
@@ -420,8 +302,7 @@ function updateTodayActivity() {
             }
         });
     });
-    
-    // Walk-in activities
+
     Object.values(allWalkins).forEach(walkin => {
         if (walkin.gym_data?.last_checkin && new Date(walkin.gym_data.last_checkin).toDateString() === today) {
             const walkinId = walkin.key.split('_').pop().slice(-4);
@@ -437,19 +318,17 @@ function updateTodayActivity() {
             });
         }
     });
-    
+
     allActivities.sort((a, b) => new Date(b.checkin) - new Date(a.checkin));
     todayActivities = allActivities;
-    
     activityCountBadge.textContent = allActivities.length;
-    
+
     activityTableBody.innerHTML = allActivities.map(activity => {
         const checkInTime = new Date(activity.checkin).toLocaleTimeString();
-        const checkOutTime = activity.checkout ? new Date(activity.checkout).toLocaleTimeString() : '-';
-        const timeSpent = activity.time_spent ? `${activity.time_spent}m` : '-';
-        
+        const checkOutTime = activity.checkout ? new Date(activity.checkout).toLocaleTimeString() : '—';
+        const timeSpent = activity.time_spent ? `${activity.time_spent}m` : '—';
+
         let statusClass, statusText, daysClass;
-        
         if (activity.type === 'walkin') {
             statusClass = activity.is_current ? 'status-active' : 'status-expired';
             statusText = activity.is_current ? 'IN GYM' : 'COMPLETED';
@@ -460,40 +339,34 @@ function updateTodayActivity() {
             daysClass = getDaysClass(membership.remaining_days);
             statusText = activity.is_current ? 'IN GYM' : getMembershipStatus(membership);
         }
-        
+
         return `
-            <tr class="${activity.type === 'walkin' ? 'walkin-row' : ''}">
-                <td>${activity.member}<br><small>UID: ${activity.uid}</small></td>
+            <tr>
+                <td>${activity.member}<br><small style="color:#6a6a6a">UID: ${activity.uid}</small></td>
                 <td>${checkInTime}</td>
                 <td>${checkOutTime}</td>
                 <td>${timeSpent}</td>
                 <td><span class="${statusClass}">${statusText}</span></td>
                 <td class="${daysClass}">${activity.membership?.remaining_days !== undefined ? activity.membership.remaining_days : 'N/A'}</td>
-            </tr>
-        `;
+            </tr>`;
     }).join('');
 }
 
 function updateStats() {
     const today = new Date().toDateString();
-    
-    // Currently in gym
     const checkedInMembers = allMembers.filter(m => m.gym_data.is_checked_in).length;
-    const activeWalkins = Object.values(allWalkins).filter(w => w.gym_data?.is_checked_in === true).length;
-    const totalInGym = checkedInMembers + activeWalkins;
-    
-    // Today's visitors
+    const activeWalkinsCount = Object.values(allWalkins).filter(w => w.gym_data?.is_checked_in === true).length;
+
     const todayVisitorIds = new Set();
     allMembers.forEach(member => {
-        const history = member.attendance_history || [];
-        history.forEach(visit => {
+        (member.attendance_history || []).forEach(visit => {
             if (visit.checkin && new Date(visit.checkin).toDateString() === today) {
                 todayVisitorIds.add(member.uid);
             }
         });
         if (member.gym_data.is_checked_in) todayVisitorIds.add(member.uid);
     });
-    
+
     let walkinCount = 0;
     Object.values(allWalkins).forEach(walkin => {
         if (walkin.gym_data?.last_checkin && new Date(walkin.gym_data.last_checkin).toDateString() === today) {
@@ -501,35 +374,34 @@ function updateStats() {
             todayVisitorIds.add(walkin.key);
         }
     });
-    
+
     const activeMembersCount = allMembers.filter(m => {
         const membership = m.membership;
         return membership.status !== 'expired' && (membership.remaining_days === undefined || membership.remaining_days > 0);
     }).length;
-    
+
     const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - (60 * 60 * 1000));
-    const recentCheckins = todayActivities.filter(activity => new Date(activity.checkin) > oneHourAgo).length;
-    
-    currentOccupancy.textContent = totalInGym;
+    const oneHourAgo = new Date(now.getTime() - 3600000);
+    const recentCheckins = todayActivities.filter(a => new Date(a.checkin) > oneHourAgo).length;
+
+    currentOccupancy.textContent = checkedInMembers + activeWalkinsCount;
     todayVisitors.textContent = todayVisitorIds.size;
     activeMembers.textContent = activeMembersCount;
-    peakHours.textContent = recentCheckins > 5 ? 'Now' : '--:--';
-    
+    peakHours.textContent = recentCheckins > 5 ? 'Now' : '—';
     if (walkinToday) walkinToday.textContent = walkinCount;
 }
 
 async function clearTodayActivity() {
     if (!confirm('Clear all of today\'s activity?')) return;
-    
+
     const today = new Date().toISOString().split('T')[0];
     const updates = {};
-    
+
     allMembers.forEach(member => {
         if (member.attendance_history) {
-            const filtered = member.attendance_history.filter(visit => {
-                return !visit.checkin || new Date(visit.checkin).toISOString().split('T')[0] !== today;
-            });
+            const filtered = member.attendance_history.filter(visit =>
+                !visit.checkin || new Date(visit.checkin).toISOString().split('T')[0] !== today
+            );
             if (filtered.length !== member.attendance_history.length) {
                 updates[`Customers/${member.key}/attendance_history`] = filtered;
                 if (member.gym_data.is_checked_in) {
@@ -538,11 +410,11 @@ async function clearTodayActivity() {
             }
         }
     });
-    
+
     Object.keys(allWalkins).forEach(key => {
         if (key.includes(today)) updates[`Customers/${key}`] = null;
     });
-    
+
     if (Object.keys(updates).length > 0) {
         try {
             await update(ref(db), updates);
@@ -578,7 +450,7 @@ function showMessage(text, type) {
     checkinMessage.textContent = text;
     checkinMessage.className = `message ${type}`;
     checkinMessage.style.display = 'block';
-    setTimeout(() => checkinMessage.style.display = 'none', 5000);
+    setTimeout(() => { checkinMessage.style.display = 'none'; }, 5000);
 }
 
 function focusOnInput() {
@@ -589,12 +461,14 @@ memberUidInput.addEventListener('input', function() {
     const uid = this.value.trim();
     if (uid === DAYPASS_IN) {
         checkInOutBtn.textContent = 'Day Pass IN';
-        checkInOutBtn.style.background = '#28a745';
+        checkInOutBtn.classList.add('day-pass-in');
+        checkInOutBtn.classList.remove('day-pass-out');
     } else if (uid === DAYPASS_OUT) {
         checkInOutBtn.textContent = 'Day Pass OUT';
-        checkInOutBtn.style.background = '#dc3545';
+        checkInOutBtn.classList.add('day-pass-out');
+        checkInOutBtn.classList.remove('day-pass-in');
     } else {
-        checkInOutBtn.style.background = '';
+        checkInOutBtn.classList.remove('day-pass-in', 'day-pass-out');
         const member = allMembers.find(m => m.uid === uid || m.key === uid);
         if (member) {
             checkInOutBtn.textContent = member.gym_data.is_checked_in ? 'Check Out' : 'Check In';
@@ -604,4 +478,4 @@ memberUidInput.addEventListener('input', function() {
     }
 });
 
-init();
+document.addEventListener('DOMContentLoaded', init);

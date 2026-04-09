@@ -198,9 +198,33 @@ onValue(customersRef, (snapshot) => {
 
     emptyState.style.display = 'none';
 
+    const now = new Date();
+    const curMonth = now.getMonth();
+    const curYear  = now.getFullYear();
+    let walkinRevenue = 0;
+
     snapshot.forEach(child => {
-        if (child.key.startsWith('WALKIN_')) return;
         const data = child.val();
+
+        if (child.key.startsWith('WALKIN_')) {
+            let walkinDate = null;
+            if (data.gym_data?.last_checkin) {
+                walkinDate = new Date(data.gym_data.last_checkin);
+            } else if (data.timestamp) {
+                walkinDate = new Date(data.timestamp);
+            } else {
+                const parts = child.key.split('_');
+                if (parts.length >= 3) {
+                    const ts = parseInt(parts[parts.length - 1]);
+                    if (!isNaN(ts) && ts > 1_000_000_000_000) walkinDate = new Date(ts);
+                }
+            }
+            if (walkinDate && walkinDate.getMonth() === curMonth && walkinDate.getFullYear() === curYear) {
+                walkinRevenue += (data.payment || data.payment_amount || 40);
+            }
+            return;
+        }
+
         const member = {
             key: child.key,
             uid: data.personal_info?.uid || data.gym_data?.uid || child.key,
@@ -213,8 +237,27 @@ onValue(customersRef, (snapshot) => {
         allMembers.push(member);
     });
 
-    totalMonthlyRevenue = allMembers.reduce((sum, m) => sum + (m.membership.payment_amount || 0), 0);
+    let monthlyRevenue = walkinRevenue;
+    allMembers.forEach(m => {
+        const startDateStr = m.membership?.start_date;
+        const monthsPaid   = m.membership?.months_paid || 1;
+        const paymentAmt   = m.membership?.payment_amount || 0;
+        const monthlyRate  = paymentAmt > 0 ? paymentAmt / monthsPaid : (m.membership?.monthly_rate || 0);
 
+        if (startDateStr && monthlyRate > 0) {
+            const start = new Date(startDateStr);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(start);
+            end.setMonth(end.getMonth() + monthsPaid);
+            const mStart = new Date(curYear, curMonth, 1);
+            const mEnd   = new Date(curYear, curMonth + 1, 0);
+            if (start <= mEnd && end >= mStart) {
+                monthlyRevenue += monthlyRate;
+            }
+        }
+    });
+
+    totalMonthlyRevenue = monthlyRevenue;
     updateSummaryCards(allMembers, totalMonthlyRevenue);
     renderMembers(allMembers);
 });
@@ -225,12 +268,10 @@ function updateSummaryCards(members, revenue = totalMonthlyRevenue) {
     let expired = 0;
 
     members.forEach(m => {
-        // Use the same function that renderMembers uses to calculate remaining days
-        const remainingDays = getActualRemainingDays(m);
-        
-        if (remainingDays <= 0) {
+        const days = getActualRemainingDays(m);
+        if (days <= 0) {
             expired++;
-        } else if (remainingDays <= 7) {
+        } else if (days <= 7) {
             expiring++;
         } else {
             active++;
@@ -316,6 +357,7 @@ function renderMembers(members) {
         }
 
         const row = document.createElement('tr');
+        if (status === 'expired' || remainingDays <= 0) row.classList.add('row-expired');
         row.innerHTML = `
             <td><strong>${member.uid}</strong></td>
             <td>${fullname}</td>

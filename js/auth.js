@@ -1,4 +1,3 @@
-
 import { db } from './database_init.js';
 import { ref, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
@@ -24,7 +23,7 @@ export const AUTH = {
     },
 
     logout() {
-    sessionStorage.removeItem('gym_admin');
-    document.getElementById('authOverlay').style.display = 'flex';
-}
+        sessionStorage.removeItem('gym_admin');
+        document.getElementById('authOverlay').style.display = 'flex';
+    }
 };

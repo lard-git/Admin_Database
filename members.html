@@ -1,66 +1,20 @@
-<script>
-  const overlayHTML = `
-    <div id="authOverlay" style="position:fixed; inset:0; left:220px; background:rgba(0,0,0,.75); display:flex; align-items:center; justify-content:center; z-index:9999;">
-      <div id="authBox" style="background:#fff; padding:25px 30px; border-radius:8px; text-align:center;">
-        <h3>Admin Login</h3>
-        <input id="pwdInp" type="password" placeholder="Enter password" autocomplete="off">
-        <button id="loginBtn">Unlock</button>
-        <div class="error" id="authErr"></div>
-      </div>
-    </div>`;
-</script>
-
-<script type="module">
-  import { db } from './js/database_init.js';
-  import { AUTH } from './js/auth.js';
-
-  if (sessionStorage.getItem('gym_admin') === 'yes') {
-    document.getElementById('authOverlay').style.display = 'none';
-  } else {
-    document.getElementById('loginBtn').onclick = async () => {
-      const btn = document.getElementById('loginBtn');
-      btn.disabled = true;
-      btn.textContent = '...';
-      const ok = await AUTH.login(document.getElementById('pwdInp').value);
-      btn.disabled = false;
-      btn.textContent = 'Unlock';
-      if (ok) {
-        document.getElementById('authOverlay').style.display = 'none';
-      } else {
-        const err = document.getElementById('authErr');
-        err.textContent = 'Wrong password, please try again.';
-        document.getElementById('authBox').classList.add('shake');
-        setTimeout(() => document.getElementById('authBox').classList.remove('shake'), 500);
-        document.getElementById('pwdInp').value = '';
-        document.getElementById('pwdInp').focus();
-      }
-    };
-
-    document.getElementById('pwdInp').addEventListener('keypress', e => {
-      if (e.key === 'Enter') document.getElementById('loginBtn').click();
-    });
-  }
-</script>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Members List - Gym Admin</title>
-  <script type="module" src="js/members.js"></script>
-  <script type="module" src="js/ui.js"></script>
   <link rel="stylesheet" href="resources/members.css">
 </head>
 <body>
   <div id="authOverlay">
-        <div id="authBox">
-            <h3>Admin Login</h3>
-            <input id="pwdInp" type="password" placeholder="Enter password" autocomplete="off">
-            <button id="loginBtn">Unlock</button>
-            <div class="error" id="authErr"></div>
-        </div>
+    <div id="authBox">
+      <h3>Admin Login</h3>
+      <input id="pwdInp" type="password" placeholder="Enter password" autocomplete="off">
+      <button id="loginBtn">Unlock</button>
+      <div class="error" id="authErr"></div>
     </div>
+  </div>
 
   <div class="sidebar">
     <h2>Gym Admin</h2>
@@ -69,13 +23,6 @@
     <a href="occupancy.html"> Gym Occupancy</a>
     <a href="analytics.html">Analytics</a>
     <a href="#" id="logout">Logout</a>
-        <script type="module">
-          import { AUTH } from './js/auth.js';
-          document.getElementById('logout').onclick = e => {
-            e.preventDefault();
-            AUTH.logout();
-          };
-        </script>
   </div>
 
   <div class="content">
@@ -168,7 +115,7 @@
               <div class="form-row">
                 <div class="form-group half-width">
                   <label for="editPhone">Mobile</label>
-                  <input type="text" id="editPhone" placeholder="Mobile number">
+                  <input type="text" id="editPhone" placeholder="Mobile number" maxlength="11" inputmode="numeric">
                 </div>
                 <div class="form-group half-width">
                   <label for="editUID">UID</label>
@@ -225,22 +172,46 @@
 
   </div>
 
-   <script type="module">
+  <script type="module" src="js/members.js"></script>
+  <script type="module" src="js/ui.js"></script>
+  <script type="module">
     import { AUTH } from './js/auth.js';
-    setInterval(() => {
-        if (!document.getElementById('authOverlay')) {
-        document.body.insertAdjacentHTML('afterbegin', overlayHTML);
-        document.getElementById('loginBtn').onclick = async () => {
-            const ok = await AUTH.login(document.getElementById('pwdInp').value);
-            if (ok) {
-            document.getElementById('authOverlay').style.display = 'none';
-            } else {
-            document.getElementById('authErr').textContent = 'Wrong password';
-            }
-        };
-        }
-    }, 500);
-    </script>
 
+    const overlay  = document.getElementById('authOverlay');
+    const loginBtn = document.getElementById('loginBtn');
+    const pwdInp   = document.getElementById('pwdInp');
+    const authErr  = document.getElementById('authErr');
+    const authBox  = document.getElementById('authBox');
+
+    if (sessionStorage.getItem('gym_admin') === 'yes') {
+      overlay.style.display = 'none';
+    }
+
+    loginBtn.addEventListener('click', async () => {
+      loginBtn.disabled = true;
+      loginBtn.textContent = '...';
+      const ok = await AUTH.login(pwdInp.value);
+      loginBtn.disabled = false;
+      loginBtn.textContent = 'Unlock';
+      if (ok) {
+        overlay.style.display = 'none';
+      } else {
+        authErr.textContent = 'Wrong password, please try again.';
+        authBox.classList.add('shake');
+        setTimeout(() => authBox.classList.remove('shake'), 500);
+        pwdInp.value = '';
+        pwdInp.focus();
+      }
+    });
+
+    pwdInp.addEventListener('keypress', e => {
+      if (e.key === 'Enter') loginBtn.click();
+    });
+
+    document.getElementById('logout').addEventListener('click', e => {
+      e.preventDefault();
+      AUTH.logout();
+    });
+  </script>
 </body>
 </html>
