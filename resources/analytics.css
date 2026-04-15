@@ -323,3 +323,61 @@ body {
     .membership-charts-container { grid-template-columns: 1fr; height: auto; }
     .membership-chart { height: 220px; }
 }
+
+/* ── Chart Insights ── */
+.chart-insight {
+    margin: 10px 0 0;
+    padding: 8px 12px;
+    background: rgba(235,192,105,0.07);
+    border-left: 3px solid #ebc069;
+    border-radius: 0 6px 6px 0;
+    font-size: 12px;
+    color: #b3b3b3;
+    line-height: 1.5;
+    min-height: 18px;
+}
+.chart-insight:empty { display: none; }
+body.light-mode .chart-insight { background: rgba(184,134,11,0.06); border-left-color: #b8860b; color: #555; }
+
+/* ── Theme Toggle ── */
+.theme-toggle {
+    background: transparent;
+    border: 1px solid #404040;
+    color: #b3b3b3;
+    padding: 9px 16px;
+    border-radius: 50px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    text-align: left;
+    width: calc(100% - 24px);
+    margin: 8px 12px 0;
+    display: block;
+}
+.theme-toggle:hover { background: #282828; color: #fff; }
+
+/* ── Light Mode ── */
+body.light-mode { background-color: #f4f4f5; color: #111; }
+body.light-mode .sidebar { background: #fff; border-right-color: #e4e4e7; }
+body.light-mode .sidebar h2 { color: #111; border-bottom-color: #e4e4e7; }
+body.light-mode .sidebar a { color: #555; }
+body.light-mode .sidebar a:hover { background: #f4f4f5; color: #111; }
+body.light-mode .sidebar a.active { background: #fef3cd; color: #b8860b; }
+body.light-mode .sidebar a.active::before { background: #b8860b; }
+body.light-mode .content { background: #f4f4f5; }
+body.light-mode .page-header { border-bottom-color: #e4e4e7; }
+body.light-mode .page-header h1 { color: #111; }
+body.light-mode .summary-card { background: #fff; border-color: #e4e4e7; }
+body.light-mode .summary-card h3 { color: #555; }
+body.light-mode .chart-card { background: #fff; border-color: #e4e4e7; }
+body.light-mode .chart-card h3 { color: #111; border-bottom-color: #e4e4e7; }
+body.light-mode .stats-section { background: #fff; border-color: #e4e4e7; }
+body.light-mode .stats-section h2 { color: #111; border-bottom-color: #e4e4e7; }
+body.light-mode .stat-box { background: #f9f9f9; border-color: #e4e4e7; }
+body.light-mode .stat-box h4 { color: #555; border-bottom-color: #e4e4e7; }
+body.light-mode .stat-item { background: #fff; border-color: #e4e4e7; color: #555; }
+body.light-mode .stat-item:hover { background: #f9f9f9; }
+body.light-mode .date-range select { background: #fff; border-color: #d4d4d8; color: #111; }
+body.light-mode .theme-toggle { border-color: #d4d4d8; color: #555; }
+body.light-mode .theme-toggle:hover { background: #f4f4f5; color: #111; }

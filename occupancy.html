@@ -16,6 +16,7 @@
     <a href="members.html"> Members List</a>
     <a href="occupancy.html" class="active"> Gym Occupancy</a>
     <a href="analytics.html">Analytics</a>
+    <button id="themeToggle" class="theme-toggle">Light Mode</button>
   </div>
 
   <div class="content">
@@ -82,6 +83,13 @@
         <tbody id="activityTableBody"></tbody>
       </table>
     </div>
+  </div>
+
+  <!-- Right-click Context Menu -->
+  <div id="contextMenu" class="context-menu">
+    <div class="ctx-header" id="ctxMemberName"></div>
+    <div class="ctx-item" id="ctxCheckout">✓ Checkout from Gym</div>
+    <div class="ctx-item ctx-danger" id="ctxForceRemove">✕ Force Remove</div>
   </div>
 
 </body>

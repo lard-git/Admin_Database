@@ -23,6 +23,7 @@
     <a href="occupancy.html"> Gym Occupancy</a>
     <a href="analytics.html">Analytics</a>
     <a href="#" id="logout">Logout</a>
+    <button id="themeToggle" class="theme-toggle">Light Mode</button>
   </div>
 
   <div class="content">
@@ -36,6 +37,7 @@
         <div class="stats">
           <span id="memberCount">0</span> members
         </div>
+        <button id="incomeHistoryBtn" class="btn btn-income">Income History</button>
       </div>
     </div>
 
@@ -55,6 +57,14 @@
       <div class="summary-card revenue">
         <h3>Monthly Revenue</h3>
         <span>₱<span id="revenueAmount">0</span></span>
+      </div>
+      <div class="summary-card daily-income">
+        <h3>Daily Income</h3>
+        <span class="daily-main">₱<span id="dailyIncomeToday">0</span></span>
+        <div class="daily-history">
+          <div class="day-row"><span>Yesterday</span><span class="day-val">₱<span id="dailyIncome1">0</span></span></div>
+          <div class="day-row"><span>2 days ago</span><span class="day-val">₱<span id="dailyIncome2">0</span></span></div>
+        </div>
       </div>
     </div>
 
@@ -84,6 +94,29 @@
         <p>No members found. <a href="firebase_crud.html">Register your first member</a></p>
       </div>
     </div>
+
+  <!-- Income History Modal -->
+  <div id="incomeHistoryModal" class="modal">
+    <div class="modal-content income-modal">
+      <span class="close-income">&times;</span>
+      <h3>Income History <small id="incomeModalRange" style="font-size:12px;color:#6a6a6a;font-weight:normal;"></small></h3>
+      <div class="income-totals">
+        <div class="income-total-card">
+          <span class="itc-label">Total (14 days)</span>
+          <span class="itc-value" id="incomeTotalAll">₱0</span>
+        </div>
+        <div class="income-total-card memberships">
+          <span class="itc-label">Memberships</span>
+          <span class="itc-value" id="incomeTotalMemberships">₱0</span>
+        </div>
+        <div class="income-total-card walkins">
+          <span class="itc-label">Walk-ins</span>
+          <span class="itc-value" id="incomeTotalWalkins">₱0</span>
+        </div>
+      </div>
+      <div id="incomeHistoryContent" class="income-table-wrap"></div>
+    </div>
+  </div>
 
     <div id="qrModal" class="modal">
       <div class="modal-content">

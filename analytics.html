@@ -16,6 +16,7 @@
         <a href="members.html">Members List</a>
         <a href="occupancy.html">Gym Occupancy</a>
         <a href="analytics.html" class="active">Analytics</a>
+        <button id="themeToggle" class="theme-toggle">Light Mode</button>
     </div>
 
     <div class="content">
@@ -83,18 +84,21 @@
                 <div class="chart-container">
                     <canvas id="hourlyTrafficChart"></canvas>
                 </div>
+                <p class="chart-insight" id="insightHourly"></p>
             </div>
             <div class="chart-card">
                 <h3>Daily Visitors Trend</h3>
                 <div class="chart-container">
                     <canvas id="dailyTrafficChart"></canvas>
                 </div>
+                <p class="chart-insight" id="insightDaily"></p>
             </div>
             <div class="chart-card">
                 <h3>Membership Activity</h3>
                 <div class="chart-container">
                     <canvas id="membershipActivityChart"></canvas>
                 </div>
+                <p class="chart-insight" id="insightMembership"></p>
             </div>
         </div>
 
@@ -104,12 +108,13 @@
                 <div class="chart-container" style="height:280px;">
                     <canvas id="monthlyRevenueChart"></canvas>
                 </div>
+                <p class="chart-insight" id="insightRevenue"></p>
             </div>
         </div>
     </div>
 
     <script type="module">
-      import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+      import { ref, onValue } from "firebase/database";
       import { db } from './js/database_init.js';
       onValue(ref(db, 'WeeklyGrowthRate'), s => {
         const pct = s.val()?.pct ?? 0;

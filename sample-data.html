@@ -3,465 +3,459 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Generate Band Pattern Data</title>
-    <!-- Use Firebase compat version -->
+    <title>Gym Data Generator</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
+        * {
+            box-sizing: border-box;
+        }
         body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
+            font-family: system-ui, -apple-system, 'Segoe UI', monospace;
+            background: #f1f5f9;
+            margin: 0;
+            padding: 24px 20px;
         }
-        
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 1.1em;
-        }
-        
-        .pattern-option {
-            margin: 15px 0;
-            padding: 15px;
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
             background: white;
-            border-radius: 8px;
-            border: 2px solid #dee2e6;
+            border-radius: 0px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #cbd5e1;
+        }
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin: 0 0 6px 0;
+            color: #0f172a;
+            letter-spacing: -0.2px;
+        }
+        .pattern-option {
+            margin: 12px 0;
+            padding: 12px 16px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
             cursor: pointer;
-            transition: all 0.3s;
-            width: 300px;
+            transition: 0.1s linear;
         }
-        
         .pattern-option:hover {
-            border-color: #2196f3;
-            transform: translateY(-2px);
+            background: #f8fafc;
+            border-color: #94a3b8;
         }
-        
         .pattern-option.selected {
-            border-color: #2196f3;
-            background: #e7f3ff;
+            background: #e2e8f0;
+            border-left: 4px solid #1e293b;
+            border-color: #1e293b;
         }
-        
         .pattern-title {
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 5px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            color: #0f172a;
+            font-family monospace;
         }
-        
-        .pattern-desc {
-            color: #666;
-            font-size: 0.9em;
-            margin-left: 30px;
-        }
-        
         button {
-            background: #667eea;
+            background: #1e293b;
             color: white;
             border: none;
-            padding: 18px 30px;
-            border-radius: 10px;
-            font-size: 18px;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            font-weight: 450;
             cursor: pointer;
-            margin: 20px 0;
-            width: 300px;
-            font-weight: bold;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+            margin-top: 24px;
+            width: 100%;
+            font-family: inherit;
+            border-radius: 0px;
+            transition: 0.1s linear;
         }
-        
-        button:hover {
-            transform: translateY(-2px);
-            background: #764ba2;
+        button:hover:not(:disabled) {
+            background: #0f172a;
         }
-        
         button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
+            opacity: 0.6;
+            cursor: default;
         }
-        
         .notification {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            padding: 20px 25px;
-            border-radius: 10px;
+            padding: 12px 20px;
+            background: #1e293b;
             color: white;
-            font-weight: bold;
-            transform: translateY(100px);
+            font-size: 0.85rem;
+            transform: translateY(80px);
             opacity: 0;
-            transition: all 0.5s ease;
+            transition: 0.2s ease;
             z-index: 1000;
-            max-width: 400px;
+            font-family: monospace;
+            border-left: 3px solid #94a3b8;
         }
-        
         .notification.show {
             transform: translateY(0);
             opacity: 1;
         }
-        
-        .notification.success {
-            background: #4caf50;
+        .notification.success { background: #166534; border-left-color: #86efac; }
+        .notification.error { background: #991b1b; border-left-color: #fca5a5; }
+        hr {
+            margin: 20px 0;
+            border-color: #e2e8f0;
         }
-        
-        .notification.error {
-            background: #f44336;
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            background: #f8fafc;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            border-bottom: 1px solid #e2e8f0;
+            font-family: monospace;
+        }
+        .bare-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #475569;
+            margin-bottom: 12px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="pattern-selector">
-            
-            <div class="pattern-option" data-pattern="double-peak" onclick="selectPattern('double-peak')">
-                <div class="pattern-title">Double Peak Pattern</div>
-                <div class="pattern-desc">Strong morning (7-9am) & evening (5-8pm) peaks, +15% weekly growth</div>
-            </div>
-            
-            <div class="pattern-option" data-pattern="evening-heavy" onclick="selectPattern('evening-heavy')">
-                <div class="pattern-title">Evening Heavy Pattern</div>
-                <div class="pattern-desc">Massive evening rush (5-10pm), stable +5% weekly growth</div>
-            </div>
-            
-            <div class="pattern-option" data-pattern="morning-rush" onclick="selectPattern('morning-rush')">
-                <div class="pattern-title">Morning Rush Pattern</div>
-                <div class="pattern-desc">Intense morning traffic (5-10am), declining -8% weekly growth</div>
-            </div>
-            
-            <div class="pattern-option" data-pattern="weekend-warrior" onclick="selectPattern('weekend-warrior')">
-                <div class="pattern-title"> Weekend Warrior Pattern</div>
-                <div class="pattern-desc">Weekend spikes, erratic +25%/-10% weekly growth swings</div>
-            </div>
-        </div>
-        
-        <button id="generateBtn">
-            <span>subukan</span>
-        </button>
+<div class="container">
+    <h1>generate 3-month data (members + walk-ins)</h1>
+    <div class="bare-title">traffic pattern</div>
+    <div class="pattern-option" data-pattern="double-peak" onclick="selectPattern('double-peak')">
+        <div class="pattern-title">double peak</div>
     </div>
+    <div class="pattern-option" data-pattern="evening-heavy" onclick="selectPattern('evening-heavy')">
+        <div class="pattern-title">evening heavy</div>
+    </div>
+    <div class="pattern-option" data-pattern="morning-rush" onclick="selectPattern('morning-rush')">
+        <div class="pattern-title">morning rush</div>
+    </div>
+    <div class="pattern-option" data-pattern="weekend-warrior" onclick="selectPattern('weekend-warrior')">
+        <div class="pattern-title">weekend warrior</div>
+    </div>
+    <button id="generateBtn">generate 90-day data</button>
+    <hr />
+    <div class="stats-row"><span>members</span><span>40</span></div>
+    <div class="stats-row"><span>walk-ins (approx)</span><span>200-320</span></div>
+    <div class="stats-row"><span>time span</span><span>90 days</span></div>
+    <div class="stats-row"><span>total visits est</span><span>4500+</span></div>
+</div>
+<div id="notification" class="notification"></div>
 
-    <div class="notification" id="notification"></div>
+<script>
+    // ---------- FIREBASE ----------
+    const firebaseConfig = {
+        apiKey: "AIzaSyB6x0Si8OoiD3UDDMjXgZTMOdfv8neMtik",
+        authDomain: "gym-database-f4b61.firebaseapp.com",
+        databaseURL: "https://gym-database-f4b61-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "gym-database-f4b61",
+        storageBucket: "gym-database-f4b61.firebasestorage.app",
+        messagingSenderId: "79575587778",
+        appId: "1:79575587778:web:55b218534fde16847ad45b",
+        measurementId: "G-BGPJNP62J5"
+    };
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyB6x0Si8OoiD3UDDMjXgZTMOdfv8neMtik",
-            authDomain: "gym-database-f4b61.firebaseapp.com",
-            databaseURL: "https://gym-database-f4b61-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "gym-database-f4b61",
-            storageBucket: "gym-database-f4b61.firebasestorage.app",
-            messagingSenderId: "79575587778",
-            appId: "1:79575587778:web:55b218534fde16847ad45b",
-            measurementId: "G-BGPJNP62J5"
-        };
+    // pattern definitions
+    const patterns = {
+        'double-peak': {
+            name: 'Double Peak',
+            hourlyMultipliers: [1,1,1,1,2,5,8,10,9,6,4,5,6,4,3,4,6,9,12,10,7,5,3,2],
+            weeklyGrowthBase: 12,
+            volatility: 0.08
+        },
+        'evening-heavy': {
+            name: 'Evening Heavy',
+            hourlyMultipliers: [1,1,1,1,2,3,4,5,4,3,4,5,6,5,4,5,8,12,15,14,10,6,3,2],
+            weeklyGrowthBase: 6,
+            volatility: 0.05
+        },
+        'morning-rush': {
+            name: 'Morning Rush',
+            hourlyMultipliers: [2,2,3,4,6,9,12,14,10,7,5,6,5,4,3,3,4,5,6,5,4,3,2,2],
+            weeklyGrowthBase: -5,
+            volatility: 0.07
+        },
+        'weekend-warrior': {
+            name: 'Weekend Warrior',
+            hourlyMultipliers: [1,1,1,1,2,4,6,8,7,5,6,8,9,7,5,6,9,11,10,8,6,4,2,1],
+            weeklyGrowthBase: 18,
+            volatility: 0.22
+        }
+    };
+
+    let selectedPattern = 'double-peak';
+    const firstNames = ['Alex','Jordan','Taylor','Casey','Morgan','Riley','Avery','Quinn','Blake','Dakota','Emerson','Finley','Harley','Justice','Kai','Phoenix','Rowan','Sage','Skyler','Spencer','Charlie','Drew','Eden','Elliot','Frankie','Gray','Harper','Jules','Kelly','Lane','Marley','Max','Nico','Oakley','Peyton','Reese','River','Rory','Salem','Shiloh'];
+    const lastNames = ['Anderson','Baker','Carter','Davis','Edwards','Foster','Graham','Harris','Irwin','Johnson','Keller','Lawson','Miller','Nelson','Owens','Parker','Quinn','Roberts','Simpson','Thompson','Underwood','Vance','Walker','Xavier','Young','Zimmer','Archer','Brooks','Chase','Drake','Flynn','Grant','Hunt','Jones','Knight','Lee','Mason','North','Pierce','Reed'];
+
+    const generateBtn = document.getElementById('generateBtn');
+    const notificationDiv = document.getElementById('notification');
+
+    function selectPattern(pattern) {
+        selectedPattern = pattern;
+        document.querySelectorAll('.pattern-option').forEach(el => el.classList.remove('selected'));
+        document.querySelector(`[data-pattern="${pattern}"]`).classList.add('selected');
+    }
+
+    function showNotification(msg, type = 'success') {
+        notificationDiv.textContent = msg;
+        notificationDiv.className = `notification ${type} show`;
+        setTimeout(() => notificationDiv.classList.remove('show'), 4500);
+    }
+
+    function selectHourByPattern(patternObj, isWeekend) {
+        let multipliers = [...patternObj.hourlyMultipliers];
+        if (isWeekend && selectedPattern === 'weekend-warrior') {
+            multipliers = multipliers.map((val, idx) => (idx >= 8 && idx <= 21) ? val * 1.4 : val);
+        }
+        const total = multipliers.reduce((a,b)=>a+b,0);
+        let rand = Math.random() * total;
+        let accum = 0;
+        for(let i=0;i<24;i++) {
+            accum += multipliers[i];
+            if(rand <= accum) return i;
+        }
+        return 17;
+    }
+
+    function generateWalkinsForDate(date, patternObj, weeklyFactor) {
+        const dayOfWeek = date.getDay();
+        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+        let baseWalkins = isWeekend ? 5 : 3;
+        if (selectedPattern === 'weekend-warrior') baseWalkins = isWeekend ? 8 : 2;
+        if (selectedPattern === 'evening-heavy') baseWalkins = isWeekend ? 6 : 4;
+        if (selectedPattern === 'morning-rush') baseWalkins = isWeekend ? 4 : 3;
         
-        // Initialize Firebase
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+        let adjustedCount = Math.max(1, Math.floor(baseWalkins * weeklyFactor));
+        adjustedCount += Math.floor(Math.random() * 3) - 1;
+        adjustedCount = Math.min(12, Math.max(1, adjustedCount));
         
-        // DOM elements
-        const generateBtn = document.getElementById('generateBtn');
-        const notification = document.getElementById('notification');
-        
-        // Pattern data
-        const patterns = {
-            'double-peak': {
-                name: 'Double Peak',
-                hourlyMultipliers: [1, 1, 1, 1, 2, 5, 8, 10, 9, 6, 4, 5, 6, 4, 3, 4, 6, 9, 12, 10, 7, 5, 3, 2],
-                weeklyGrowth: 15,
-                peakHour: '7-9am & 6-8pm',
-                description: 'Strong morning and evening peaks'
-            },
-            'evening-heavy': {
-                name: 'Evening Heavy',
-                hourlyMultipliers: [1, 1, 1, 1, 2, 3, 4, 5, 4, 3, 4, 5, 6, 5, 4, 5, 8, 12, 15, 14, 10, 6, 3, 2],
-                weeklyGrowth: 5,
-                peakHour: '6-10pm',
-                description: 'Massive evening rush hours'
-            },
-            'morning-rush': {
-                name: 'Morning Rush',
-                hourlyMultipliers: [2, 2, 3, 4, 6, 9, 12, 14, 10, 7, 5, 6, 5, 4, 3, 3, 4, 5, 6, 5, 4, 3, 2, 2],
-                weeklyGrowth: -8,
-                peakHour: '5-10am',
-                description: 'Intense morning traffic'
-            },
-            'weekend-warrior': {
-                name: 'Weekend Warrior',
-                hourlyMultipliers: [1, 1, 1, 1, 2, 4, 6, 8, 7, 5, 6, 8, 9, 7, 5, 6, 9, 11, 10, 8, 6, 4, 2, 1],
-                weeklyGrowth: '±15',
-                peakHour: 'Weekends',
-                description: 'Weekend spikes, erratic growth'
-            }
-        };
-        
-        let selectedPattern = 'double-peak';
-        
-        // Member names
-        const firstNames = [
-            'Alex', 'Jordan', 'Taylor', 'Casey', 'Morgan', 'Riley', 'Avery', 'Quinn',
-            'Blake', 'Dakota', 'Emerson', 'Finley', 'Harley', 'Justice', 'Kai', 'Phoenix',
-            'Rowan', 'Sage', 'Skyler', 'Spencer', 'Charlie', 'Drew', 'Eden', 'Elliot',
-            'Frankie', 'Gray', 'Harper', 'Jules', 'Kelly', 'Lane', 'Marley', 'Max',
-            'Nico', 'Oakley', 'Peyton', 'Reese', 'River', 'Rory', 'Salem', 'Shiloh'
-        ];
-        
-        const lastNames = [
-            'Anderson', 'Baker', 'Carter', 'Davis', 'Edwards', 'Foster', 'Graham', 'Harris',
-            'Irwin', 'Johnson', 'Keller', 'Lawson', 'Miller', 'Nelson', 'Owens', 'Parker',
-            'Quinn', 'Roberts', 'Simpson', 'Thompson', 'Underwood', 'Vance', 'Walker', 'Xavier',
-            'Young', 'Zimmer', 'Archer', 'Brooks', 'Chase', 'Drake', 'Flynn', 'Grant',
-            'Hunt', 'Jones', 'Knight', 'Lee', 'Mason', 'North', 'Pierce', 'Reed'
-        ];
-        
-        // Initialize
-        function init() {
-            selectPattern('double-peak');
-            
-            generateBtn.addEventListener('click', generateData);
-            
-            // Check Firebase connection
-            db.ref('.info/connected').on('value', (snap) => {
-                if (snap.val() === true) {
-                    console.log('Firebase connected');
-                } else {
-                    console.log('Firebase disconnected');
-                }
+        const walkins = [];
+        for(let w=0; w<adjustedCount; w++) {
+            const hour = selectHourByPattern(patternObj, isWeekend);
+            const minute = Math.floor(Math.random() * 60);
+            const checkinTime = new Date(date);
+            checkinTime.setHours(hour, minute, 0, 0);
+            const duration = 30 + Math.floor(Math.random() * 70);
+            const checkoutTime = new Date(checkinTime.getTime() + duration * 60000);
+            walkins.push({
+                checkin: checkinTime.toISOString(),
+                checkout: checkoutTime.toISOString(),
+                time_spent: duration,
+                date: date.toISOString().split('T')[0]
             });
         }
+        return walkins;
+    }
+
+    async function generateData() {
+        generateBtn.disabled = true;
+        generateBtn.textContent = 'generating ...';
         
-        // Select pattern
-        function selectPattern(pattern) {
-            selectedPattern = pattern;
-            
-            // Update UI
-            document.querySelectorAll('.pattern-option').forEach(el => {
-                el.classList.remove('selected');
-            });
-            document.querySelector(`[data-pattern="${pattern}"]`).classList.add('selected');
-        }
+        const patternObj = patterns[selectedPattern];
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 90);
         
-        // Show notification
-        function showNotification(message, type = 'success') {
-            notification.textContent = message;
-            notification.className = `notification ${type} show`;
+        try {
+            await db.ref('Customers').remove();
             
-            setTimeout(() => {
-                notification.className = 'notification';
-            }, 5000);
-        }
-        
-        // Generate data based on selected pattern
-        async function generateData() {
-            generateBtn.disabled = true;
-            generateBtn.innerHTML = '<span>⏳ Generating Pattern Data...</span>';
-            
-            const pattern = patterns[selectedPattern];
-            
-            console.log(`Starting generation of ${pattern.name} pattern...`);
-            
-            try {
-                // Clear existing data
-                console.log('Clearing old data...');
-                await new Promise((resolve, reject) => {
-                    db.ref('Customers').remove()
-                        .then(resolve)
-                        .catch(reject);
-                });
-                console.log('✅ Cleared old data');
-                
-                const now = new Date();
-                const startDate = new Date();
-                startDate.setDate(startDate.getDate() - 45); // 45 days history
-                
-                // Generate 40 members
-                const totalMembers = 40;
-                let totalVisits = 0;
-                
-                for (let i = 0; i < totalMembers; i++) {
-                    const firstName = firstNames[i % firstNames.length];
-                    const lastName = lastNames[i % lastNames.length];
-                    const uid = (30000000 + i).toString();
-                    
-                    // Generate attendance history
-                    const attendanceHistory = [];
-                    const currentDate = new Date(startDate);
-                    
-                    while (currentDate <= now) {
-                        const dayOfWeek = currentDate.getDay();
-                        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-                        
-                        // Base visits: 2-3 per day, more on weekends for some patterns
-                        let baseVisits = 2 + Math.floor(Math.random() * 2); // 2-3
-                        
-                        // Adjust for pattern
-                        if (selectedPattern === 'weekend-warrior' && isWeekend) {
-                            baseVisits += 1; // Extra visit on weekends
-                        }
-                        
-                        for (let v = 0; v < baseVisits; v++) {
-                            // Determine hour based on pattern
-                            let hour = selectHourByPattern(pattern, isWeekend);
-                            
-                            const visitDate = new Date(currentDate);
-                            visitDate.setHours(hour, Math.floor(Math.random() * 60), 0, 0);
-                            
-                            // Visit duration: 45-90 minutes
-                            const duration = 45 + Math.floor(Math.random() * 45);
-                            
-                            attendanceHistory.push({
-                                checkin: visitDate.toISOString(),
-                                checkout: new Date(visitDate.getTime() + duration * 60000).toISOString(),
-                                time_spent: duration,
-                                date: visitDate.toISOString().split('T')[0]
-                            });
-                            
-                            totalVisits++;
-                        }
-                        
-                        currentDate.setDate(currentDate.getDate() + 1);
-                    }
-                    
-                    // Create member data
-                    const memberData = {
-                        personal_info: {
-                            firstname: firstName,
-                            lastname: lastName,
-                            phone: `555-${3000 + i}`,
-                            membership_type: Math.random() > 0.3 ? 'regular' : 'student'
-                        },
+            // members (40)
+            const totalMembers = 40;
+            const memberList = [];
+            for (let i = 0; i < totalMembers; i++) {
+                const firstName = firstNames[i % firstNames.length];
+                const lastName = lastNames[i % lastNames.length];
+                const uid = (30000000 + i).toString();
+                const membershipType = Math.random() > 0.25 ? 'regular' : 'student';
+                const monthlyRate = membershipType === 'regular' ? 800 : 600;
+                memberList.push({
+                    key: uid,
+                    uid: uid,
+                    data: {
+                        personal_info: { firstname: firstName, lastname: lastName, phone: `555-${2000+i}`, membership_type: membershipType },
                         membership: {
-                            status: 'active',
-                            plan: 'regular',
-                            plan_display: Math.random() > 0.3 ? 'Regular' : 'Student',
-                            monthly_rate: Math.random() > 0.3 ? 800 : 600,
-                            payment_amount: Math.random() > 0.3 ? 800 : 600,
-                            months_paid: 1,
+                            status: 'active', plan: membershipType, plan_display: membershipType === 'regular' ? 'Regular' : 'Student',
+                            monthly_rate: monthlyRate, payment_amount: monthlyRate, months_paid: 3,
                             start_date: startDate.toISOString().split('T')[0],
-                            end_date: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                            remaining_days: 90,
-                            last_updated: now.toISOString().split('T')[0]
+                            end_date: new Date(endDate.getTime() + 90*24*60*60000).toISOString().split('T')[0],
+                            remaining_days: 90, last_updated: endDate.toISOString().split('T')[0]
                         },
-                        gym_data: {
-                            uid: parseInt(uid),
-                            is_checked_in: Math.random() > 0.85, // 15% chance
-                            total_visits: attendanceHistory.length,
-                            total_time_spent: attendanceHistory.reduce((sum, visit) => sum + visit.time_spent, 0)
-                        },
-                        attendance_history: attendanceHistory
-                    };
+                        gym_data: { uid: parseInt(uid), is_checked_in: false, total_visits: 0, total_time_spent: 0 },
+                        attendance_history: []
+                    }
+                });
+            }
+            
+            // weekly growth factors
+            let weeklyGrowthFactors = [1.0];
+            let currentFactor = 1.0;
+            const weeklyBase = patternObj.weeklyGrowthBase / 100;
+            for (let week = 1; week <= 14; week++) {
+                let growthDelta = weeklyBase;
+                if (selectedPattern === 'weekend-warrior') growthDelta = (week % 2 === 0) ? 0.18 : -0.10;
+                const volatilityFactor = 1 + (patternObj.volatility * (Math.random() - 0.5));
+                let newFactor = currentFactor * (1 + growthDelta * volatilityFactor);
+                newFactor = Math.min(2.1, Math.max(0.65, newFactor));
+                weeklyGrowthFactors.push(newFactor);
+                currentFactor = newFactor;
+            }
+            
+            const memberAttendance = new Map();
+            for (let m of memberList) memberAttendance.set(m.uid, []);
+            
+            const allWalkins = [];
+            const currentDate = new Date(startDate);
+            let dayCount = 0;
+            
+            while (currentDate <= endDate) {
+                const dateCopy = new Date(currentDate);
+                const dateStr = dateCopy.toISOString().split('T')[0];
+                const dayOfWeek = dateCopy.getDay();
+                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                const daysSinceStart = Math.floor((dateCopy - startDate) / (1000*3600*24));
+                const weekIdx = Math.floor(daysSinceStart / 7);
+                const weeklyFactor = weeklyGrowthFactors[weekIdx] || 1.0;
+                
+                // members attendance
+                for (let member of memberList) {
+                    let visitProb = 0.38;
+                    if (isWeekend && selectedPattern === 'weekend-warrior') visitProb = 0.68;
+                    if (!isWeekend && selectedPattern === 'double-peak') visitProb = 0.45;
+                    if (selectedPattern === 'evening-heavy' && (dayOfWeek >=1 && dayOfWeek <=5)) visitProb = 0.48;
+                    visitProb = Math.min(0.85, visitProb * (0.7 + weeklyFactor * 0.6));
                     
-                    // Save to Firebase
-                    await new Promise((resolve, reject) => {
-                        db.ref('Customers/' + uid).set(memberData)
-                            .then(resolve)
-                            .catch(reject);
-                    });
+                    const randVal = Math.random();
+                    let visitsToday = 0;
+                    if (randVal < visitProb) visitsToday = 1;
+                    else if (randVal < visitProb + 0.22) visitsToday = 2;
+                    else if (randVal < visitProb + 0.3) visitsToday = 3;
                     
-                    if ((i + 1) % 10 === 0) {
-                        console.log(`Generated ${i + 1}/${totalMembers} members`);
+                    if (visitsToday === 0) continue;
+                    
+                    for (let v=0; v<visitsToday; v++) {
+                        const hour = selectHourByPattern(patternObj, isWeekend);
+                        const minute = Math.floor(Math.random() * 60);
+                        const checkinTime = new Date(dateCopy);
+                        checkinTime.setHours(hour, minute, 0, 0);
+                        const duration = 45 + Math.floor(Math.random() * 55);
+                        const checkoutTime = new Date(checkinTime.getTime() + duration * 60000);
+                        const existing = memberAttendance.get(member.uid) || [];
+                        existing.push({
+                            checkin: checkinTime.toISOString(),
+                            checkout: checkoutTime.toISOString(),
+                            time_spent: duration,
+                            date: dateStr
+                        });
+                        memberAttendance.set(member.uid, existing);
                     }
                 }
                 
-                console.log(`Generated ${totalMembers} members with ${totalVisits} total visits`);
-                
-                // Generate PREDICTION DATA based on pattern
-                const nextHour = (now.getHours() + 1) % 24;
-                const patternMultiplier = pattern.hourlyMultipliers[nextHour];
-                const predictedVisits = Math.max(5, Math.min(30, Math.round(40 * 2.5 / 24 * patternMultiplier * 1.5)));
-                
-                // Confidence based on pattern stability
-                let confidence = 0.7;
-                if (selectedPattern === 'weekend-warrior') confidence = 0.5;
-                if (selectedPattern === 'double-peak') confidence = 0.8;
-                
-                await new Promise((resolve, reject) => {
-                    db.ref('Trend24h').set({
-                        nextHour: predictedVisits,
-                        confidence: confidence,
-                        timestamp: now.toISOString(),
-                        nextHourTime: `${nextHour}:00`,
-                        pattern: pattern.name
-                    }).then(resolve).catch(reject);
-                });
-                
-                console.log(`Prediction: ${predictedVisits} visitors at ${nextHour}:00`);
-                
-                // Generate WEEKLY GROWTH DATA based on pattern
-                let weeklyGrowth = pattern.weeklyGrowth;
-                
-                // Add some randomness to growth
-                if (typeof weeklyGrowth === 'string') {
-                    // For weekend warrior: ±15%
-                    weeklyGrowth = (Math.random() > 0.5 ? 15 : -10);
-                } else {
-                    weeklyGrowth += (Math.random() * 6 - 3); // ±3% variation
+                // walk-ins generation for this day
+                const dailyWalkins = generateWalkinsForDate(dateCopy, patternObj, weeklyFactor);
+                for (let wk of dailyWalkins) {
+                    const timestamp = new Date(wk.checkin).getTime();
+                    const walkinKey = `WALKIN_${dateStr}_${timestamp}_${Math.floor(Math.random()*10000)}`;
+                    const shortId = timestamp.toString().slice(-4);
+                    const walkinObj = {
+                        personal_info: { firstname: "WALK-IN", lastname: `#${shortId}`, uid: walkinKey, type: "daypass" },
+                        gym_data: {
+                            is_checked_in: false,
+                            last_checkin: wk.checkin,
+                            last_checkout: wk.checkout,
+                            total_visits: 1,
+                            total_time_spent: wk.time_spent,
+                            uid: walkinKey
+                        },
+                        membership: { status: "completed", remaining_days: 0, start_date: dateStr, end_date: dateStr },
+                        attendance_history: [{
+                            checkin: wk.checkin,
+                            checkout: wk.checkout,
+                            time_spent: wk.time_spent,
+                            date: dateStr
+                        }]
+                    };
+                    allWalkins.push({ key: walkinKey, data: walkinObj });
                 }
                 
-                await new Promise((resolve, reject) => {
-                    db.ref('WeeklyGrowthRate').set({
-                        pct: parseFloat(weeklyGrowth.toFixed(1)),
-                        thisWeekSum: Math.round(40 * 7 * (1 + weeklyGrowth/100)),
-                        lastWeekSum: 40 * 7,
-                        timestamp: now.toISOString(),
-                        pattern: pattern.name,
-                        trend: weeklyGrowth > 0 ? 'up' : 'down'
-                    }).then(resolve).catch(reject);
-                });
-                
-                console.log(`Weekly Growth: ${weeklyGrowth > 0 ? '+' : ''}${weeklyGrowth.toFixed(1)}%`);
-                
-                // Final success
-                showNotification(`${pattern.name} pattern generated successfully!`);
-                
-                console.log('ang galing');
-                
-            } catch (error) {
-                console.error('Error:', error);
-                showNotification('❌ Error generating data', 'error');
-            } finally {
-                generateBtn.disabled = false;
-                generateBtn.innerHTML = '<span>🚀 Generate Test Data</span>';
+                dayCount++;
+                currentDate.setDate(currentDate.getDate() + 1);
             }
+            
+            // finalize members data
+            for (let member of memberList) {
+                const visits = memberAttendance.get(member.uid) || [];
+                visits.sort((a,b) => new Date(a.checkin) - new Date(b.checkin));
+                const totalTime = visits.reduce((sum, v) => sum + (v.time_spent || 0), 0);
+                member.data.attendance_history = visits;
+                member.data.gym_data.total_visits = visits.length;
+                member.data.gym_data.total_time_spent = totalTime;
+                member.data.gym_data.is_checked_in = false;
+            }
+            
+            // upload members
+            for (let i=0; i<memberList.length; i++) {
+                await db.ref(`Customers/${memberList[i].key}`).set(memberList[i].data);
+                if ((i+1) % 15 === 0) console.log(`members: ${i+1}/${memberList.length}`);
+            }
+            
+            // upload walk-ins
+            for (let i=0; i<allWalkins.length; i++) {
+                await db.ref(`Customers/${allWalkins[i].key}`).set(allWalkins[i].data);
+                if ((i+1) % 80 === 0) console.log(`walk-ins: ${i+1}/${allWalkins.length}`);
+            }
+            
+            // prediction node
+            const now = new Date();
+            const nextHour = (now.getHours() + 1) % 24;
+            const patternMulti = patternObj.hourlyMultipliers[nextHour];
+            const predictedVisits = Math.max(4, Math.min(32, Math.round(38 * 2.4 / 24 * patternMulti * 1.4)));
+            let confidence = (selectedPattern === 'double-peak') ? 0.82 : (selectedPattern === 'weekend-warrior' ? 0.52 : 0.72);
+            await db.ref('Trend24h').set({
+                nextHour: predictedVisits,
+                confidence: confidence,
+                timestamp: now.toISOString(),
+                nextHourTime: `${nextHour}:00`,
+                pattern: patternObj.name
+            });
+            
+            let weeklyGrowthFinal = patternObj.weeklyGrowthBase + (Math.random() * 4 - 2);
+            if (selectedPattern === 'weekend-warrior') weeklyGrowthFinal = (Math.random() > 0.6 ? 16 : -8);
+            await db.ref('WeeklyGrowthRate').set({
+                pct: parseFloat(weeklyGrowthFinal.toFixed(1)),
+                thisWeekSum: Math.round(38 * 7 * (1 + weeklyGrowthFinal/100)),
+                lastWeekSum: 38 * 7,
+                timestamp: now.toISOString(),
+                pattern: patternObj.name,
+                trend: weeklyGrowthFinal > 0 ? 'up' : 'down'
+            });
+            
+            await db.ref('metadata/stats').set({
+                total_walkins_generated: allWalkins.length,
+                total_members: totalMembers,
+                date_range_days: dayCount,
+                last_generated: now.toISOString(),
+                pattern_used: patternObj.name
+            });
+            
+            const totalMemberVisits = memberList.reduce((acc, m) => acc + (m.data.gym_data.total_visits || 0), 0);
+            const totalVisitsAll = totalMemberVisits + allWalkins.length;
+            showNotification(`done. ${totalMembers} members + ${allWalkins.length} walk-ins | total visits: ${totalVisitsAll}`, 'success');
+        } catch (err) {
+            console.error(err);
+            showNotification(`error: ${err.message}`, 'error');
+        } finally {
+            generateBtn.disabled = false;
+            generateBtn.textContent = 'generate 90-day data';
         }
-        
-        // Select hour based on pattern
-        function selectHourByPattern(pattern, isWeekend) {
-            const multipliers = pattern.hourlyMultipliers;
-            
-            // Create weighted distribution
-            const totalWeight = multipliers.reduce((a, b) => a + b, 0);
-            const weighted = [];
-            let cumulative = 0;
-            
-            for (let i = 0; i < 24; i++) {
-                cumulative += multipliers[i];
-                weighted[i] = cumulative / totalWeight;
-            }
-            
-            // Random selection based on weights
-            const random = Math.random();
-            for (let i = 0; i < 24; i++) {
-                if (random <= weighted[i]) {
-                    return i;
-                }
-            }
-            
-            return 17; // Default to 5 PM
-        }
-        
-        // Initialize on load
-        window.onload = init;
-    </script>
+    }
+    
+    window.selectPattern = selectPattern;
+    generateBtn.addEventListener('click', generateData);
+    selectPattern('double-peak');
+</script>
 </body>
 </html>

@@ -245,7 +245,6 @@ body {
     font-weight: bold;
     display: none;
     font-size: 13px;
-    border-radius: 8px;
 }
 
 .message.success { background: rgba(29,185,84,0.12); color: #1db954; border: 1px solid rgba(29,185,84,0.3); display: block; }
@@ -417,3 +416,128 @@ tbody tr:last-child td { border-bottom: none; }
     .checkin-form { flex-direction: column; }
     #memberUidInput, #checkInOutBtn { width: 100%; }
 }
+
+/* ── Theme Toggle ── */
+.theme-toggle {
+    background: transparent;
+    border: 1px solid #404040;
+    color: #b3b3b3;
+    padding: 9px 16px;
+    border-radius: 50px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+    text-align: left;
+    width: calc(100% - 24px);
+    margin: 8px 12px 0;
+    display: block;
+}
+.theme-toggle:hover { background: #282828; color: #fff; }
+
+/* ── Income Button ── */
+.btn-income { background: rgba(235,192,105,0.15); color: #ebc069; border: 1px solid rgba(235,192,105,0.3); }
+.btn-income:hover { filter: brightness(1.2); transform: scale(1.03); }
+
+/* ── Income History Modal ── */
+.income-modal {
+    max-width: 740px;
+    width: 95%;
+    max-height: 85vh;
+    overflow-y: auto;
+    text-align: left;
+    align-items: flex-start;
+}
+.income-totals {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+.income-total-card {
+    flex: 1;
+    min-width: 130px;
+    background: #282828;
+    border-radius: 10px;
+    padding: 14px 16px;
+    border: 1px solid #383838;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.income-total-card.memberships .itc-value { color: #ebc069; }
+.income-total-card.walkins .itc-value { color: #4fc3f7; }
+.itc-label { font-size: 11px; color: #6a6a6a; text-transform: uppercase; letter-spacing: 0.8px; }
+.itc-value { font-size: 22px; font-weight: bold; color: #1db954; }
+.income-table-wrap table { width: 100%; }
+.income-table-wrap th { font-size: 11px; }
+.income-table-wrap td { font-size: 13px; }
+.inc-today-row td { color: #ebc069; font-weight: bold; }
+
+/* ── Right-Click Context Menu ── */
+.context-menu {
+    position: fixed;
+    background: #282828;
+    border: 1px solid #383838;
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    min-width: 200px;
+    z-index: 9000;
+    overflow: hidden;
+    display: none;
+    animation: ctx-appear 0.12s ease-out;
+}
+@keyframes ctx-appear { from { opacity: 0; transform: scale(0.95) translateY(-4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.ctx-header {
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #6a6a6a;
+    border-bottom: 1px solid #383838;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.ctx-item {
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.ctx-item:hover { background: #383838; }
+.ctx-item.ctx-danger { color: #f15e6c; }
+.ctx-item.ctx-danger:hover { background: rgba(241,94,108,0.1); }
+
+/* ── Light Mode ── */
+body.light-mode { background-color: #f4f4f5; color: #111; }
+body.light-mode .sidebar { background: #fff; border-right-color: #e4e4e7; }
+body.light-mode .sidebar h2 { color: #111; border-bottom-color: #e4e4e7; }
+body.light-mode .sidebar a { color: #555; }
+body.light-mode .sidebar a:hover { background: #f4f4f5; color: #111; }
+body.light-mode .sidebar a.active { background: #fef3cd; color: #b8860b; }
+body.light-mode .sidebar a.active::before { background: #b8860b; }
+body.light-mode .content { background: #f4f4f5; }
+body.light-mode .page-header { border-bottom-color: #e4e4e7; }
+body.light-mode .page-header h1 { color: #111; }
+body.light-mode .stat-card { background: #fff; border-color: #e4e4e7; }
+body.light-mode .stat-card h3 { color: #555; }
+body.light-mode .checkin-section, body.light-mode .occupancy-section, body.light-mode .activity-section { background: #fff; border-color: #e4e4e7; }
+body.light-mode .checkin-section h2, body.light-mode .occupancy-section h2, body.light-mode .activity-section h2 { color: #111; border-bottom-color: #e4e4e7; }
+body.light-mode #memberUidInput { background: #fff; border-color: #d4d4d8; color: #111; }
+body.light-mode th { background: #f9f9f9; color: #555; border-bottom-color: #e4e4e7; }
+body.light-mode td { color: #111; border-bottom-color: #f4f4f5; }
+body.light-mode tbody tr:hover { background: rgba(0,0,0,0.03); }
+body.light-mode .member-card { background: #f4f4f5; }
+body.light-mode .member-card:hover { background: #e4e4e7; }
+body.light-mode .member-name { color: #111; }
+body.light-mode .checkin-time { color: #888; }
+body.light-mode .modal-content { background: #fff; border-color: #e4e4e7; }
+body.light-mode .modal-content h3 { color: #111; border-bottom-color: #e4e4e7; }
+body.light-mode .income-total-card { background: #f9f9f9; border-color: #e4e4e7; }
+body.light-mode .context-menu { background: #fff; border-color: #e4e4e7; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+body.light-mode .ctx-header { color: #aaa; border-bottom-color: #e4e4e7; }
+body.light-mode .ctx-item { color: #111; }
+body.light-mode .ctx-item:hover { background: #f4f4f5; }
+body.light-mode .btn-secondary { color: #555; border-color: #d4d4d8; }
+body.light-mode .theme-toggle { border-color: #d4d4d8; color: #555; }
+body.light-mode .theme-toggle:hover { background: #f4f4f5; color: #111; }

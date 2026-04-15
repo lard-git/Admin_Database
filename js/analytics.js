@@ -505,6 +505,59 @@ function updateCharts(hourlyCount, dailyCount, dateCount, members, visits) {
     updateHourlyTrafficChart(hourlyCount, members);
     updateDailyTrafficChart(dateCount);
     updateMembershipActivityChart(members, visits);
+    updateChartInsights(hourlyCount, dailyCount, dateCount, members, visits);
+}
+
+function updateChartInsights(hourlyCount, dailyCount, dateCount, members, visits) {
+    const fmtHour = h => h === 0 ? '12 AM' : h === 12 ? '12 PM' : h < 12 ? `${h} AM` : `${h - 12} PM`;
+
+    // Hourly insight
+    const maxCount = Math.max(...hourlyCount);
+    const insightHourlyEl = document.getElementById('insightHourly');
+    if (insightHourlyEl) {
+        if (maxCount > 0) {
+            const peakHr = hourlyCount.indexOf(maxCount);
+            const morningAvg = hourlyCount.slice(6, 12).reduce((a, b) => a + b, 0);
+            const eveningAvg = hourlyCount.slice(17, 22).reduce((a, b) => a + b, 0);
+            const trend = eveningAvg > morningAvg ? 'evening crowd is heavier — consider extra staff after 5 PM' : 'mornings see more traffic — ideal for early-bird promotions';
+            insightHourlyEl.textContent = `Peak activity is at ${fmtHour(peakHr)} with ${maxCount} check-ins; ${trend}.`;
+        } else {
+            insightHourlyEl.textContent = 'No check-in data yet — insights will appear once members start visiting.';
+        }
+    }
+
+    // Daily trend insight
+    const insightDailyEl = document.getElementById('insightDaily');
+    if (insightDailyEl) {
+        const dates = Object.keys(dateCount).sort();
+        if (dates.length >= 4) {
+            const half = Math.floor(dates.length / 2);
+            const firstHalf = dates.slice(0, half).reduce((s, d) => s + dateCount[d], 0) / half;
+            const secondHalf = dates.slice(half).reduce((s, d) => s + dateCount[d], 0) / (dates.length - half);
+            const pct = firstHalf > 0 ? Math.round(((secondHalf - firstHalf) / firstHalf) * 100) : 0;
+            const dir = pct >= 0 ? `up ${pct}%` : `down ${Math.abs(pct)}%`;
+            insightDailyEl.textContent = `Visitor traffic is ${dir} compared to the first half of the selected period${Math.abs(pct) < 5 ? ' — fairly steady overall' : ''}.`;
+        } else if (dates.length > 0) {
+            const avg = Math.round(Object.values(dateCount).reduce((a, b) => a + b, 0) / dates.length);
+            insightDailyEl.textContent = `Averaging ${avg} visitor${avg !== 1 ? 's' : ''} per day — check back later for trend analysis as more data accumulates.`;
+        } else {
+            insightDailyEl.textContent = 'No visit data in the selected range yet.';
+        }
+    }
+
+    // Membership activity insight
+    const insightMembEl = document.getElementById('insightMembership');
+    if (insightMembEl) {
+        const activeMembers = members.filter(m => m.membership.status !== 'expired' && (m.membership.remaining_days === undefined || m.membership.remaining_days > 0)).length;
+        const activeVisitors = new Set(visits.filter(v => v.member.membership.status !== 'expired').map(v => v.member.uid)).size;
+        if (activeMembers > 0) {
+            const engagePct = Math.round((activeVisitors / activeMembers) * 100);
+            const engageLabel = engagePct >= 70 ? 'great engagement' : engagePct >= 40 ? 'moderate engagement' : 'low engagement';
+            insightMembEl.textContent = `${engagePct}% of active members visited during this period — ${engageLabel}${engagePct < 40 ? '; consider a re-engagement campaign' : ''}.`;
+        } else {
+            insightMembEl.textContent = 'No active members found — register members to see engagement insights.';
+        }
+    }
 }
 
 function updateHourlyChartPrediction() {

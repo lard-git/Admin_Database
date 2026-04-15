@@ -19,6 +19,7 @@ const downloadQR = document.getElementById("downloadQR");
 const editModal = document.getElementById("editModal");
 
 let allMembers = [];
+let memberWalkins = {};
 let currentLargeQR = '';
 let currentEditMember = null;
 let totalMonthlyRevenue = 0;
@@ -81,6 +82,17 @@ function initEventListeners() {
             editModal.style.display = 'none';
             currentEditMember = null;
         }
+        const incomeModal = document.getElementById('incomeHistoryModal');
+        if (incomeModal && event.target === incomeModal) incomeModal.style.display = 'none';
+    });
+
+    const incomeHistoryBtn = document.getElementById('incomeHistoryBtn');
+    if (incomeHistoryBtn) incomeHistoryBtn.addEventListener('click', showIncomeHistory);
+
+    const closeIncome = document.querySelector('.close-income');
+    if (closeIncome) closeIncome.addEventListener('click', () => {
+        const m = document.getElementById('incomeHistoryModal');
+        if (m) m.style.display = 'none';
     });
 }
 
@@ -219,6 +231,7 @@ onValue(customersRef, (snapshot) => {
                     if (!isNaN(ts) && ts > 1_000_000_000_000) walkinDate = new Date(ts);
                 }
             }
+            memberWalkins[child.key] = { ...data, _walkinDate: walkinDate };
             if (walkinDate && walkinDate.getMonth() === curMonth && walkinDate.getFullYear() === curYear) {
                 walkinRevenue += (data.payment || data.payment_amount || 40);
             }
@@ -259,6 +272,7 @@ onValue(customersRef, (snapshot) => {
 
     totalMonthlyRevenue = monthlyRevenue;
     updateSummaryCards(allMembers, totalMonthlyRevenue);
+    updateDailyIncomeDisplay();
     renderMembers(allMembers);
 });
 
@@ -311,6 +325,14 @@ function getActualRemainingDays(member) {
     }
 }
 
+function getStatusPriority(member) {
+    const remainingDays = getActualRemainingDays(member);
+    const status = member.membership?.status || 'unknown';
+    if (status === 'expired' || remainingDays <= 0) return 3;
+    if (remainingDays <= 7) return 1;
+    return 2;
+}
+
 function renderMembers(members) {
     tableBody.innerHTML = "";
 
@@ -321,7 +343,16 @@ function renderMembers(members) {
 
     emptyState.style.display = 'none';
 
-    members.forEach(member => {
+    const sorted = [...members].sort((a, b) => {
+        const pa = getStatusPriority(a);
+        const pb = getStatusPriority(b);
+        if (pa !== pb) return pa - pb;
+        const na = `${a.firstname} ${a.lastname}`.toLowerCase();
+        const nb = `${b.firstname} ${b.lastname}`.toLowerCase();
+        return na.localeCompare(nb);
+    });
+
+    sorted.forEach(member => {
         const fullname = `${member.firstname} ${member.lastname}`;
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${member.uid}`;
 
@@ -349,10 +380,10 @@ function renderMembers(members) {
             daysClass = 'days-danger';
         } else if (remainingDays <= 7) {
             statusClass = 'status-warning';
-            statusText = `${remainingDays} days left`;
+            statusText = 'Expiring';
             daysClass = 'days-warning';
         } else {
-            statusText = `${remainingDays} days left`;
+            statusText = 'Active';
             daysClass = 'days-safe';
         }
 
@@ -565,6 +596,125 @@ function searchMembers() {
             phone.includes(searchTerm);
     });
     renderMembers(filtered);
+}
+
+async function showIncomeHistory() {
+    const modal = document.getElementById('incomeHistoryModal');
+    const content = document.getElementById('incomeHistoryContent');
+    const totalAllEl = document.getElementById('incomeTotalAll');
+    const totalMembEl = document.getElementById('incomeTotalMemberships');
+    const totalWalkEl = document.getElementById('incomeTotalWalkins');
+    const rangeEl = document.getElementById('incomeModalRange');
+    if (!modal || !content) return;
+
+    content.innerHTML = '<p style="color:#6a6a6a;text-align:center;padding:20px;">Loading…</p>';
+    modal.style.display = 'flex';
+
+    const snap = await get(ref(db, 'Customers'));
+    const today = new Date();
+    const days = [];
+    for (let i = 0; i < 14; i++) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        days.push(d.toISOString().split('T')[0]);
+    }
+
+    const membershipIncome = {};
+    const walkinIncome = {};
+    days.forEach(d => { membershipIncome[d] = 0; walkinIncome[d] = 0; });
+
+    if (snap.exists()) {
+        snap.forEach(child => {
+            const data = child.val();
+            if (child.key.startsWith('WALKIN_')) {
+                let walkinDate = null;
+                if (data.gym_data?.last_checkin) walkinDate = new Date(data.gym_data.last_checkin).toISOString().split('T')[0];
+                else if (data.timestamp) walkinDate = new Date(data.timestamp).toISOString().split('T')[0];
+                else {
+                    const parts = child.key.split('_');
+                    const ts = parseInt(parts[parts.length - 1]);
+                    if (!isNaN(ts) && ts > 1_000_000_000_000) walkinDate = new Date(ts).toISOString().split('T')[0];
+                }
+                if (walkinDate && walkinIncome[walkinDate] !== undefined) {
+                    walkinIncome[walkinDate] += data.payment || data.payment_amount || 40;
+                }
+            } else {
+                const startDate = data.membership?.start_date || data.membership?.last_updated;
+                if (startDate && membershipIncome[startDate] !== undefined) {
+                    membershipIncome[startDate] += data.membership?.payment_amount || 0;
+                }
+            }
+        });
+    }
+
+    let totalMemb = 0, totalWalk = 0;
+    days.forEach(d => { totalMemb += membershipIncome[d]; totalWalk += walkinIncome[d]; });
+    const totalAll = totalMemb + totalWalk;
+
+    if (totalAllEl) totalAllEl.textContent = '₱' + totalAll.toLocaleString();
+    if (totalMembEl) totalMembEl.textContent = '₱' + totalMemb.toLocaleString();
+    if (totalWalkEl) totalWalkEl.textContent = '₱' + totalWalk.toLocaleString();
+    if (rangeEl) rangeEl.textContent = `(${days[days.length - 1]} – ${days[0]})`;
+
+    const fmt = d => {
+        const dt = new Date(d + 'T00:00:00');
+        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
+    };
+    const todayStr = today.toISOString().split('T')[0];
+
+    const rows = days.map(d => {
+        const total = membershipIncome[d] + walkinIncome[d];
+        const isToday = d === todayStr;
+        const cls = isToday ? 'class="inc-today-row"' : '';
+        return `<tr ${cls}>
+            <td>${fmt(d)}${isToday ? ' <span style="color:#ebc069;font-size:10px;">(today)</span>' : ''}</td>
+            <td style="color:#ebc069;">₱${membershipIncome[d].toLocaleString()}</td>
+            <td style="color:#4fc3f7;">₱${walkinIncome[d].toLocaleString()}</td>
+            <td style="font-weight:bold;">₱${total.toLocaleString()}</td>
+        </tr>`;
+    }).join('');
+
+    content.innerHTML = `
+        <table>
+            <thead><tr><th>Date</th><th>Memberships</th><th>Walk-ins</th><th>Total</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+}
+
+function computeDailyIncome(targetDateStr) {
+    let income = 0;
+    allMembers.forEach(m => {
+        const start = m.membership?.start_date;
+        const updated = m.membership?.last_updated;
+        if (start === targetDateStr || updated === targetDateStr) {
+            income += m.membership?.payment_amount || 0;
+        }
+    });
+    Object.values(memberWalkins).forEach(w => {
+        const d = w._walkinDate;
+        if (d && d.toISOString().split('T')[0] === targetDateStr) {
+            income += w.payment || w.payment_amount || 40;
+        }
+    });
+    return income;
+}
+
+function updateDailyIncomeDisplay() {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    const twoDays = new Date(today); twoDays.setDate(twoDays.getDate() - 2);
+
+    const todayIncome = computeDailyIncome(todayStr);
+    const yestIncome = computeDailyIncome(yesterday.toISOString().split('T')[0]);
+    const twoDaysIncome = computeDailyIncome(twoDays.toISOString().split('T')[0]);
+
+    const el0 = document.getElementById('dailyIncomeToday');
+    const el1 = document.getElementById('dailyIncome1');
+    const el2 = document.getElementById('dailyIncome2');
+    if (el0) el0.textContent = todayIncome.toLocaleString();
+    if (el1) el1.textContent = yestIncome.toLocaleString();
+    if (el2) el2.textContent = twoDaysIncome.toLocaleString();
 }
 
 window.showQRModal = showQRModal;

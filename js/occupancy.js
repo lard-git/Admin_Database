@@ -25,6 +25,13 @@ let currentOccupancyCount = 0;
 const DAYPASS_IN = 'DAYPASS_IN';
 const DAYPASS_OUT = 'DAYPASS_OUT';
 
+const contextMenu = document.getElementById('contextMenu');
+const ctxMemberName = document.getElementById('ctxMemberName');
+const ctxCheckout = document.getElementById('ctxCheckout');
+const ctxForceRemove = document.getElementById('ctxForceRemove');
+let ctxTargetKey = null;
+let ctxIsWalkin = false;
+
 function init() {
     loadMembers();
     focusOnInput();
@@ -36,6 +43,64 @@ function init() {
     checkInOutBtn.addEventListener('click', handleCheckInOut);
     refreshActivity.addEventListener('click', updateTodayActivity);
     clearActivity.addEventListener('click', clearTodayActivity);
+
+    // Right-click context menu on member cards
+    const membersList = document.getElementById('currentMembersList');
+    if (membersList) {
+        membersList.addEventListener('contextmenu', e => {
+            const card = e.target.closest('[data-member-key]');
+            if (!card) return;
+            e.preventDefault();
+            ctxTargetKey = card.dataset.memberKey;
+            ctxIsWalkin = card.dataset.isWalkin === 'true';
+            const name = card.querySelector('.member-name')?.textContent || ctxTargetKey;
+            if (ctxMemberName) ctxMemberName.textContent = name;
+            const x = Math.min(e.clientX, window.innerWidth - 220);
+            const y = Math.min(e.clientY, window.innerHeight - 120);
+            contextMenu.style.left = x + 'px';
+            contextMenu.style.top = y + 'px';
+            contextMenu.style.display = 'block';
+        });
+    }
+
+    document.addEventListener('click', () => { if (contextMenu) contextMenu.style.display = 'none'; });
+    document.addEventListener('contextmenu', e => {
+        if (!e.target.closest('#currentMembersList [data-member-key]')) {
+            if (contextMenu) contextMenu.style.display = 'none';
+        }
+    });
+
+    if (ctxCheckout) {
+        ctxCheckout.addEventListener('click', async () => {
+            contextMenu.style.display = 'none';
+            if (!ctxTargetKey) return;
+            if (ctxIsWalkin) {
+                await checkOutWalkinByKey(ctxTargetKey);
+            } else {
+                const member = allMembers.find(m => m.key === ctxTargetKey);
+                if (member) await checkOutMember(member);
+            }
+        });
+    }
+
+    if (ctxForceRemove) {
+        ctxForceRemove.addEventListener('click', async () => {
+            contextMenu.style.display = 'none';
+            if (!ctxTargetKey) return;
+            if (confirm('Force remove this person from the gym? (Does not record checkout time)')) {
+                try {
+                    if (ctxIsWalkin) {
+                        await update(ref(db, `Customers/${ctxTargetKey}`), { 'gym_data/is_checked_in': false, 'membership/status': 'force_removed' });
+                    } else {
+                        await update(ref(db, `Customers/${ctxTargetKey}/gym_data`), { is_checked_in: false });
+                    }
+                    showMessage('Removed from occupancy', 'info');
+                } catch (err) {
+                    showMessage('Error: ' + err.message, 'error');
+                }
+            }
+        });
+    }
 }
 
 function loadMembers() {
@@ -253,7 +318,7 @@ function updateOccupancyDisplay() {
         const membershipStatus = getMembershipStatus(member.membership);
 
         return `
-            <div class="member-card ${membershipClass}">
+            <div class="member-card ${membershipClass}" data-member-key="${member.key}" data-is-walkin="false" title="Right-click to checkout">
                 <div class="member-info">
                     <div class="member-name">${member.firstname} ${member.lastname}</div>
                     <div class="member-uid">UID: ${member.uid}</div>
@@ -269,7 +334,7 @@ function updateOccupancyDisplay() {
         const walkinId = walkin.key.split('_').pop().slice(-4);
 
         return `
-            <div class="member-card walkin-card">
+            <div class="member-card walkin-card" data-member-key="${walkin.key}" data-is-walkin="true" title="Right-click to checkout">
                 <div class="member-info">
                     <div class="member-name">Walk-in #${walkinId}</div>
                     <div class="member-uid">DAY PASS</div>
@@ -428,7 +493,7 @@ async function clearTodayActivity() {
 function getMembershipStatus(membership) {
     if (!membership) return 'No membership';
     if (membership.status === 'expired' || membership.remaining_days <= 0) return 'Expired';
-    if (membership.remaining_days <= 7) return `${membership.remaining_days} days left`;
+    if (membership.remaining_days <= 7) return 'Expiring';
     return 'Active';
 }
 
@@ -477,5 +542,28 @@ memberUidInput.addEventListener('input', function() {
         }
     }
 });
+
+async function checkOutWalkinByKey(walkinKey) {
+    const now = new Date();
+    const walkinRef = ref(db, `Customers/${walkinKey}`);
+    const snap = await get(walkinRef);
+    if (!snap.exists()) { showMessage('Walk-in record not found.', 'error'); return; }
+    const data = snap.val();
+    const checkin = data.gym_data?.last_checkin ? new Date(data.gym_data.last_checkin) : now;
+    const timeSpent = Math.round((now - checkin) / 60000);
+    const history = data.attendance_history || [];
+    const lastVisit = history[history.length - 1];
+    if (lastVisit && !lastVisit.checkout) {
+        lastVisit.checkout = now.toISOString();
+        lastVisit.time_spent = timeSpent;
+    }
+    await update(walkinRef, {
+        'gym_data/is_checked_in': false,
+        'gym_data/last_checkout': now.toISOString(),
+        'gym_data/total_time_spent': (data.gym_data?.total_time_spent || 0) + timeSpent,
+        attendance_history: history
+    });
+    showMessage('Walk-in checked out successfully!', 'success');
+}
 
 document.addEventListener('DOMContentLoaded', init);
