@@ -217,6 +217,7 @@ onValue(customersRef, (snapshot) => {
 
     snapshot.forEach(child => {
         const data = child.val();
+        if (child.key.startsWith('_')) return; // skip internal keys like _IncomeHistory
 
         if (child.key.startsWith('WALKIN_')) {
             let walkinDate = null;
@@ -244,6 +245,10 @@ onValue(customersRef, (snapshot) => {
             firstname: data.personal_info?.firstname || "",
             lastname: data.personal_info?.lastname || "",
             phone: data.personal_info?.phone || "",
+            fb_name: data.personal_info?.fb_name || "hehe xd",
+            gender: data.personal_info?.gender || "hehe xd",
+            age: data.personal_info?.age !== undefined && data.personal_info?.age !== "" ? data.personal_info.age : "hehe xd",
+            home_address: data.personal_info?.home_address || "hehe xd",
             membership: data.membership || {},
             personal_info: data.personal_info || {}
         };
@@ -393,6 +398,10 @@ function renderMembers(members) {
             <td><strong>${member.uid}</strong></td>
             <td>${fullname}</td>
             <td>${member.phone}</td>
+            <td>${member.fb_name}</td>
+            <td>${member.gender}</td>
+            <td>${member.age}</td>
+            <td>${member.home_address}</td>
             <td>${membershipTypeDisplay}</td>
             <td><span class="status-badge ${statusClass}">${statusText}</span></td>
             <td class="${daysClass}">${remainingDays}</td>
@@ -445,6 +454,14 @@ function openEditModal(memberKey, name, uid) {
     if (editLastName) editLastName.value = member.lastname || '';
     if (editPhone) editPhone.value = member.phone || '';
     if (editUID) editUID.value = member.uid || '';
+    const editFbName = document.getElementById("editFbName");
+    const editGender = document.getElementById("editGender");
+    const editAge = document.getElementById("editAge");
+    const editAddress = document.getElementById("editAddress");
+    if (editFbName) editFbName.value = (member.fb_name === "hehe xd" ? "" : member.fb_name) || '';
+    if (editGender) editGender.value = (member.gender === "hehe xd" ? "" : member.gender) || '';
+    if (editAge) editAge.value = (member.age === "hehe xd" ? "" : member.age) || '';
+    if (editAddress) editAddress.value = (member.home_address === "hehe xd" ? "" : member.home_address) || '';
 
     const currentMembership = member.membership || {};
     const currentPayment = currentMembership.payment_amount || 0;
@@ -547,6 +564,10 @@ async function handleConfirmEdit() {
             "personal_info/lastname": editLastName.value.trim(),
             "personal_info/phone": editPhone.value.trim(),
             "personal_info/membership_type": extensionType,
+            "personal_info/fb_name": document.getElementById("editFbName")?.value.trim() || "",
+            "personal_info/gender": document.getElementById("editGender")?.value || "",
+            "personal_info/age": document.getElementById("editAge")?.value ? parseInt(document.getElementById("editAge").value) : "",
+            "personal_info/home_address": document.getElementById("editAddress")?.value.trim() || "",
             "membership/plan": extensionType,
             "membership/plan_display": extensionTypeText,
             "membership/monthly_rate": newMonthlyRate,
@@ -598,88 +619,163 @@ function searchMembers() {
     renderMembers(filtered);
 }
 
+let _incHistData = null;
+let _incCustDay = {};
+let _incViewMonth = null;
+
 async function showIncomeHistory() {
     const modal = document.getElementById('incomeHistoryModal');
     const content = document.getElementById('incomeHistoryContent');
-    const totalAllEl = document.getElementById('incomeTotalAll');
-    const totalMembEl = document.getElementById('incomeTotalMemberships');
-    const totalWalkEl = document.getElementById('incomeTotalWalkins');
-    const rangeEl = document.getElementById('incomeModalRange');
     if (!modal || !content) return;
-
-    content.innerHTML = '<p style="color:#6a6a6a;text-align:center;padding:20px;">Loading…</p>';
     modal.style.display = 'flex';
+    content.innerHTML = '<p style="color:#6a6a6a;text-align:center;padding:24px;">Loading…</p>';
 
-    const snap = await get(ref(db, 'Customers'));
     const today = new Date();
-    const days = [];
-    for (let i = 0; i < 14; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        days.push(d.toISOString().split('T')[0]);
+    const currentMonthStr = today.toISOString().slice(0, 7);
+
+    // Fetch IncomeHistory and Customers independently so one failure doesn't block both
+    let histSnap = null, custSnap = null;
+    try {
+        histSnap = await get(ref(db, 'Customers/_IncomeHistory'));
+    } catch (e) {
+        console.warn('IncomeHistory read failed:', e);
+    }
+    try {
+        custSnap = await get(ref(db, 'Customers'));
+    } catch (e) {
+        console.warn('Customers read failed:', e);
+        content.innerHTML = '<p style="color:#ef5350;text-align:center;padding:24px;">Failed to load data. Check Firebase permissions.</p>';
+        return;
     }
 
-    const membershipIncome = {};
-    const walkinIncome = {};
-    days.forEach(d => { membershipIncome[d] = 0; walkinIncome[d] = 0; });
+    _incHistData = (histSnap && histSnap.exists()) ? histSnap.val() : {};
+    _incCustDay = {};
 
-    if (snap.exists()) {
-        snap.forEach(child => {
+    if (custSnap && custSnap.exists()) {
+        custSnap.forEach(child => {
             const data = child.val();
+            if (child.key.startsWith('_')) return; // skip _IncomeHistory etc
             if (child.key.startsWith('WALKIN_')) {
-                let walkinDate = null;
-                if (data.gym_data?.last_checkin) walkinDate = new Date(data.gym_data.last_checkin).toISOString().split('T')[0];
-                else if (data.timestamp) walkinDate = new Date(data.timestamp).toISOString().split('T')[0];
+                let d = null;
+                if (data.gym_data?.last_checkin) d = new Date(data.gym_data.last_checkin).toISOString().split('T')[0];
+                else if (data.timestamp) d = new Date(data.timestamp).toISOString().split('T')[0];
                 else {
                     const parts = child.key.split('_');
                     const ts = parseInt(parts[parts.length - 1]);
-                    if (!isNaN(ts) && ts > 1_000_000_000_000) walkinDate = new Date(ts).toISOString().split('T')[0];
+                    if (!isNaN(ts) && ts > 1_000_000_000_000) d = new Date(ts).toISOString().split('T')[0];
                 }
-                if (walkinDate && walkinIncome[walkinDate] !== undefined) {
-                    walkinIncome[walkinDate] += data.payment || data.payment_amount || 40;
+                if (d && d.startsWith(currentMonthStr)) {
+                    if (!_incCustDay[d]) _incCustDay[d] = { membership: 0, walkin: 0 };
+                    _incCustDay[d].walkin += data.payment || data.payment_amount || 40;
                 }
             } else {
-                const startDate = data.membership?.start_date || data.membership?.last_updated;
-                if (startDate && membershipIncome[startDate] !== undefined) {
-                    membershipIncome[startDate] += data.membership?.payment_amount || 0;
+                const sd = data.membership?.start_date || data.membership?.last_updated;
+                if (sd && sd.startsWith(currentMonthStr)) {
+                    if (!_incCustDay[sd]) _incCustDay[sd] = { membership: 0, walkin: 0 };
+                    _incCustDay[sd].membership += data.membership?.payment_amount || 0;
                 }
             }
         });
     }
 
-    let totalMemb = 0, totalWalk = 0;
-    days.forEach(d => { totalMemb += membershipIncome[d]; totalWalk += walkinIncome[d]; });
-    const totalAll = totalMemb + totalWalk;
+    _incViewMonth = { year: today.getFullYear(), month: today.getMonth() };
+    _renderIncomeMonth(_incViewMonth);
+}
 
-    if (totalAllEl) totalAllEl.textContent = '₱' + totalAll.toLocaleString();
+function _renderIncomeMonth(vm) {
+    const content = document.getElementById('incomeHistoryContent');
+    const totalAllEl = document.getElementById('incomeTotalAll');
+    const totalMembEl = document.getElementById('incomeTotalMemberships');
+    const totalWalkEl = document.getElementById('incomeTotalWalkins');
+    const rangeEl = document.getElementById('incomeModalRange');
+    if (!content) return;
+
+    if (!vm) {
+        content.innerHTML = '<p style="color:#6a6a6a;text-align:center;padding:24px;">Loading…</p>';
+        if (rangeEl) rangeEl.textContent = '';
+        return;
+    }
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const { year, month } = vm;
+    const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+    const isCurrentMonth = monthStr === today.toISOString().slice(0, 7);
+    const monthLabel = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+    const canPrev = !(year === today.getFullYear() && month === 0);
+    const canNext = !(year === today.getFullYear() && month === today.getMonth());
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const rows = [];
+    let totalMemb = 0, totalWalk = 0;
+
+    for (let d = daysInMonth; d >= 1; d--) {
+        const dateStr = `${monthStr}-${String(d).padStart(2, '0')}`;
+        const dt = new Date(year, month, d);
+        if (dt > today) continue;
+
+        let membership = 0, walkin = 0;
+        if (isCurrentMonth && _incCustDay[dateStr]) {
+            membership = _incCustDay[dateStr].membership || 0;
+            walkin = _incCustDay[dateStr].walkin || 0;
+        } else if (!isCurrentMonth && _incHistData && _incHistData[dateStr]) {
+            membership = _incHistData[dateStr].membership || 0;
+            walkin = _incHistData[dateStr].walkin || 0;
+        }
+
+        totalMemb += membership;
+        totalWalk += walkin;
+
+        const isToday = dateStr === todayStr;
+        const dayLabel = dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        const rowTotal = membership + walkin;
+        const cls = isToday ? ' class="inc-today-row"' : '';
+        rows.push(`<tr${cls}>
+            <td>${dayLabel}${isToday ? ' <span style="color:#ebc069;font-size:10px;">(today)</span>' : ''}</td>
+            <td style="color:#ebc069;">₱${membership.toLocaleString()}</td>
+            <td style="color:#4fc3f7;">₱${walkin.toLocaleString()}</td>
+            <td style="font-weight:bold;">₱${rowTotal.toLocaleString()}</td>
+        </tr>`);
+    }
+
+    const grandTotal = totalMemb + totalWalk;
+    if (totalAllEl) totalAllEl.textContent = '₱' + grandTotal.toLocaleString();
     if (totalMembEl) totalMembEl.textContent = '₱' + totalMemb.toLocaleString();
     if (totalWalkEl) totalWalkEl.textContent = '₱' + totalWalk.toLocaleString();
-    if (rangeEl) rangeEl.textContent = `(${days[days.length - 1]} – ${days[0]})`;
+    if (rangeEl) rangeEl.textContent = '';
 
-    const fmt = d => {
-        const dt = new Date(d + 'T00:00:00');
-        return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' });
-    };
-    const todayStr = today.toISOString().split('T')[0];
-
-    const rows = days.map(d => {
-        const total = membershipIncome[d] + walkinIncome[d];
-        const isToday = d === todayStr;
-        const cls = isToday ? 'class="inc-today-row"' : '';
-        return `<tr ${cls}>
-            <td>${fmt(d)}${isToday ? ' <span style="color:#ebc069;font-size:10px;">(today)</span>' : ''}</td>
-            <td style="color:#ebc069;">₱${membershipIncome[d].toLocaleString()}</td>
-            <td style="color:#4fc3f7;">₱${walkinIncome[d].toLocaleString()}</td>
-            <td style="font-weight:bold;">₱${total.toLocaleString()}</td>
-        </tr>`;
-    }).join('');
+    const liveBadge = isCurrentMonth
+        ? ' <span style="color:#ebc069;font-size:11px;font-weight:normal;">(live)</span>'
+        : '';
+    const bodyRows = rows.length
+        ? rows.join('')
+        : '<tr><td colspan="4" style="text-align:center;color:#6a6a6a;padding:16px;">No data for this month</td></tr>';
 
     content.innerHTML = `
+        <div class="income-month-nav">
+            <button class="imn-btn" onclick="window._incomeNavMonth(-1)"${canPrev ? '' : ' disabled'}>&#8592;</button>
+            <span class="imn-label">${monthLabel}${liveBadge}</span>
+            <button class="imn-btn" onclick="window._incomeNavMonth(1)"${canNext ? '' : ' disabled'}>&#8594;</button>
+        </div>
         <table>
             <thead><tr><th>Date</th><th>Memberships</th><th>Walk-ins</th><th>Total</th></tr></thead>
-            <tbody>${rows}</tbody>
+            <tbody>${bodyRows}</tbody>
         </table>`;
 }
+
+window._incomeNavMonth = function(dir) {
+    if (!_incViewMonth) return;
+    const today = new Date();
+    let { year, month } = _incViewMonth;
+    month += dir;
+    if (month < 0) { month = 11; year--; }
+    if (month > 11) { month = 0; year++; }
+    if (year < today.getFullYear() || (year === today.getFullYear() && month < 0)) return;
+    if (year > today.getFullYear() || (year === today.getFullYear() && month > today.getMonth())) return;
+    _incViewMonth = { year, month };
+    _renderIncomeMonth(_incViewMonth);
+};
 
 function computeDailyIncome(targetDateStr) {
     let income = 0;

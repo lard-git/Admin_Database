@@ -11,6 +11,10 @@ const MonthsDisplay = document.getElementById("monthsDisplay");
 const SelectedMonthsSpan = document.getElementById("selectedMonths");
 const TotalAmountSpan = document.getElementById("totalAmount");
 const qrImg = document.getElementById("qrImg");
+const FbNameInp = document.getElementById("FbNameInp");
+const GenderInp = document.getElementById("GenderInp");
+const AgeInp = document.getElementById("AgeInp");
+const AddressInp = document.getElementById("AddressInp");
 
 function updatePaymentDisplay(months) {
     const currentPrice = getCurrentPrice();
@@ -79,11 +83,11 @@ function validateForm() {
 
     const phone = MobileInp.value.trim();
     if (!phone) {
-        alert("Please enter mobile number");
+        alert("Please enter cellphone number");
         return false;
     }
     if (!/^\d{11}$/.test(phone)) {
-        alert("Mobile number must be exactly 11 digits (numbers only)");
+        alert("Cellphone number must be exactly 11 digits (numbers only)");
         MobileInp.focus();
         return false;
     }
@@ -107,6 +111,10 @@ function clearForm() {
     updatePaymentDisplay(1);
     qrImg.src = "";
     qrImg.alt = "QR Code will appear here";
+    if (FbNameInp) FbNameInp.value = "";
+    if (GenderInp) GenderInp.value = "";
+    if (AgeInp) AgeInp.value = "";
+    if (AddressInp) AddressInp.value = "";
 }
 
 function random8Digit() {
@@ -157,7 +165,11 @@ async function AddData() {
                 firstname: FnameInp.value.trim(),
                 lastname: LnameInp.value.trim(),
                 phone: MobileInp.value.trim(),
-                membership_type: membershipType
+                membership_type: membershipType,
+                fb_name: FbNameInp?.value.trim() || "",
+                gender: GenderInp?.value || "",
+                age: AgeInp?.value ? parseInt(AgeInp.value) : "",
+                home_address: AddressInp?.value.trim() || ""
             },
             membership: {
                 status: "active",
@@ -209,6 +221,10 @@ async function ReadData() {
         FnameInp.value = data.personal_info?.firstname || "";
         LnameInp.value = data.personal_info?.lastname || "";
         MobileInp.value = data.personal_info?.phone || "";
+        if (FbNameInp) FbNameInp.value = data.personal_info?.fb_name || "";
+        if (GenderInp) GenderInp.value = data.personal_info?.gender || "";
+        if (AgeInp) AgeInp.value = data.personal_info?.age || "";
+        if (AddressInp) AddressInp.value = data.personal_info?.home_address || "";
 
         if (data.membership) {
             PaymentInp.value = data.membership.payment_amount || 500;
@@ -248,6 +264,10 @@ async function UpdateData() {
             "personal_info/firstname": FnameInp.value.trim(),
             "personal_info/lastname": LnameInp.value.trim(),
             "personal_info/phone": MobileInp.value.trim(),
+            "personal_info/fb_name": FbNameInp?.value.trim() || "",
+            "personal_info/gender": GenderInp?.value || "",
+            "personal_info/age": AgeInp?.value ? parseInt(AgeInp.value) : "",
+            "personal_info/home_address": AddressInp?.value.trim() || "",
             "membership/payment_amount": paymentAmount,
             "membership/months_paid": selectedMonths,
             "membership/start_date": startDateStr,
@@ -294,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (updateBtn) updateBtn.onclick = UpdateData;
     if (deleteBtn) deleteBtn.onclick = DeleteData;
 
-    [FnameInp, LnameInp, MobileInp, UidInp, PaymentInp].forEach(input => {
+    [FnameInp, LnameInp, MobileInp, UidInp, PaymentInp, FbNameInp, AgeInp, AddressInp].forEach(input => {
         if (!input) return;
         input.addEventListener("keypress", function(event) {
             if (event.key === "Enter") {

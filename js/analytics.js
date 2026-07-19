@@ -15,15 +15,24 @@ const growthText = document.getElementById('growthText');
 
 let hourlyTrafficChart, dailyTrafficChart, membershipActivityChart, monthlyRevenueChart;
 
-// Dark-theme adapted colors
-const colors = {
-    primary: '#ebc069',
-    secondary: '#1db954',
-    accent: '#4fc3f7',
-    highlight: '#f15e6c',
-    lightGray: 'rgba(255,255,255,0.07)',
-    darkGray: '#b3b3b3'
-};
+// Dynamic colors based on current theme
+function getColors() {
+    const light = document.body.classList.contains('light-mode');
+    return {
+        primary: '#ebc069',
+        secondary: '#1db954',
+        accent: '#4fc3f7',
+        highlight: '#f15e6c',
+        lightGray: light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.07)',
+        darkGray: light ? '#555' : '#b3b3b3',
+        tooltipBg: light ? '#fff' : '#282828',
+        tooltipTitle: light ? '#111' : '#fff',
+        tooltipBody: light ? '#555' : '#b3b3b3',
+        tooltipBorder: light ? '#d4d4d8' : '#383838',
+        doughnutBorder: light ? '#f4f4f5' : '#121212',
+        pointBorderColor: light ? '#f4f4f5' : '#121212',
+    };
+}
 
 const historicalCache = { hourlyPatterns: {}, dailyTotals: [], lastUpdated: null };
 
@@ -155,6 +164,14 @@ function init() {
     loadAnalyticsData();
     timeRange.addEventListener('change', loadAnalyticsData);
     setInterval(updateDisplay, 60000);
+
+    // Re-render charts when theme toggles
+    const themeObserver = new MutationObserver(() => {
+        if (hourlyTrafficChart || dailyTrafficChart || membershipActivityChart || monthlyRevenueChart) {
+            loadAnalyticsData();
+        }
+    });
+    themeObserver.observe(document.body, { attributeFilter: ['class'] });
 }
 
 function setupFirebaseListeners() {
@@ -279,7 +296,7 @@ async function loadAnalyticsData() {
 
         snapshot.forEach(child => {
             const data = child.val();
-            if (child.key.startsWith('WALKIN_')) return;
+            if (child.key.startsWith('_') || child.key.startsWith('WALKIN_')) return;
             const member = normalizeMemberData(child.key, data);
             members.push(member);
 
@@ -372,6 +389,7 @@ async function buildMonthlyRevenueData() {
 }
 
 function updateMonthlyRevenueChart({ labels, memberRevenue, walkinRevenue }) {
+    const colors = getColors();
     const ctx = document.getElementById('monthlyRevenueChart')?.getContext('2d');
     if (!ctx) return;
     if (monthlyRevenueChart) monthlyRevenueChart.destroy();
@@ -409,10 +427,10 @@ function updateMonthlyRevenueChart({ labels, memberRevenue, walkinRevenue }) {
             plugins: {
                 legend: { display: true, position: 'top', labels: { color: colors.darkGray, font: { size: 12 }, usePointStyle: true } },
                 tooltip: {
-                    backgroundColor: '#282828',
-                    titleColor: '#fff',
-                    bodyColor: '#b3b3b3',
-                    borderColor: '#383838',
+                    backgroundColor: colors.tooltipBg,
+                    titleColor: colors.tooltipTitle,
+                    bodyColor: colors.tooltipBody,
+                    borderColor: colors.tooltipBorder,
                     borderWidth: 1,
                     cornerRadius: 8,
                     callbacks: {
@@ -573,6 +591,7 @@ function updateHourlyChartPrediction() {
 }
 
 function updateHourlyTrafficChart(hourlyCount, members = []) {
+    const colors = getColors();
     const ctx = document.getElementById('hourlyTrafficChart').getContext('2d');
     if (hourlyTrafficChart) hourlyTrafficChart.destroy();
 
@@ -608,7 +627,7 @@ function updateHourlyTrafficChart(hourlyCount, members = []) {
                     borderWidth: 2,
                     borderDash: [5, 5],
                     pointBackgroundColor: predColor,
-                    pointBorderColor: '#121212',
+                    pointBorderColor: colors.pointBorderColor,
                     pointBorderWidth: 2,
                     pointRadius: 8,
                     pointHoverRadius: 10,
@@ -623,10 +642,10 @@ function updateHourlyTrafficChart(hourlyCount, members = []) {
             plugins: {
                 legend: { display: true, position: 'top', labels: { color: colors.darkGray, font: { size: 12 }, usePointStyle: true } },
                 tooltip: {
-                    backgroundColor: '#282828',
-                    titleColor: '#fff',
-                    bodyColor: '#b3b3b3',
-                    borderColor: '#383838',
+                    backgroundColor: colors.tooltipBg,
+                    titleColor: colors.tooltipTitle,
+                    bodyColor: colors.tooltipBody,
+                    borderColor: colors.tooltipBorder,
                     borderWidth: 1,
                     cornerRadius: 8,
                     callbacks: {
@@ -654,6 +673,7 @@ function updateHourlyTrafficChart(hourlyCount, members = []) {
 }
 
 function updateDailyTrafficChart(dateCount) {
+    const colors = getColors();
     const ctx = document.getElementById('dailyTrafficChart').getContext('2d');
     if (dailyTrafficChart) dailyTrafficChart.destroy();
 
@@ -678,7 +698,7 @@ function updateDailyTrafficChart(dateCount) {
                 tension: 0.3,
                 fill: true,
                 pointBackgroundColor: '#ebc069',
-                pointBorderColor: '#121212',
+                pointBorderColor: colors.pointBorderColor,
                 pointBorderWidth: 2,
                 pointRadius: 4,
                 pointHoverRadius: 7
@@ -690,10 +710,10 @@ function updateDailyTrafficChart(dateCount) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: '#282828',
-                    titleColor: '#fff',
-                    bodyColor: '#b3b3b3',
-                    borderColor: '#383838',
+                    backgroundColor: colors.tooltipBg,
+                    titleColor: colors.tooltipTitle,
+                    bodyColor: colors.tooltipBody,
+                    borderColor: colors.tooltipBorder,
                     borderWidth: 1,
                     cornerRadius: 8,
                     displayColors: false,
@@ -710,6 +730,7 @@ function updateDailyTrafficChart(dateCount) {
 }
 
 function updateMembershipActivityChart(members, visits) {
+    const colors = getColors();
     const ctx = document.getElementById('membershipActivityChart').getContext('2d');
     if (membershipActivityChart) membershipActivityChart.destroy();
 
@@ -726,7 +747,7 @@ function updateMembershipActivityChart(members, visits) {
             datasets: [{
                 data: [activeVisited, activeNotVisited, expiredMembers],
                 backgroundColor: ['#1db954', '#ebc069', '#f15e6c'],
-                borderColor: '#121212',
+                borderColor: colors.doughnutBorder,
                 borderWidth: 3,
                 hoverOffset: 12
             }]
@@ -738,10 +759,10 @@ function updateMembershipActivityChart(members, visits) {
             plugins: {
                 legend: { position: 'bottom', labels: { color: colors.darkGray, font: { size: 12 }, padding: 20, usePointStyle: true } },
                 tooltip: {
-                    backgroundColor: '#282828',
-                    titleColor: '#fff',
-                    bodyColor: '#b3b3b3',
-                    borderColor: '#383838',
+                    backgroundColor: colors.tooltipBg,
+                    titleColor: colors.tooltipTitle,
+                    bodyColor: colors.tooltipBody,
+                    borderColor: colors.tooltipBorder,
                     borderWidth: 1,
                     cornerRadius: 8,
                     callbacks: {

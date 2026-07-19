@@ -381,3 +381,17 @@ body.light-mode .stat-item:hover { background: #f9f9f9; }
 body.light-mode .date-range select { background: #fff; border-color: #d4d4d8; color: #111; }
 body.light-mode .theme-toggle { border-color: #d4d4d8; color: #555; }
 body.light-mode .theme-toggle:hover { background: #f4f4f5; color: #111; }
+
+/* -- Light Mode: missing overrides -- */
+body.light-mode .summary-card span { color: #111; }
+body.light-mode .summary-card.ai span { color: #b8860b; }
+body.light-mode .summary-card small { color: #777; }
+body.light-mode .legend-item { color: #555; }
+body.light-mode .stat-item .value { color: #b8860b; }
+body.light-mode .chart-card h3 small { color: #888; }
+body.light-mode .status-active { background: rgba(29,185,84,0.12); color: #197a38; }
+body.light-mode .status-warning { background: rgba(184,134,11,0.12); color: #b8860b; }
+body.light-mode .status-expired { background: rgba(200,50,60,0.12); color: #c0323c; }
+body.light-mode .revenue-high { color: #197a38; }
+body.light-mode .revenue-medium { color: #b8860b; }
+body.light-mode .revenue-low { color: #c0323c; }
