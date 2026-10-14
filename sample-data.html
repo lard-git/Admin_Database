@@ -3,459 +3,360 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gym Data Generator</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <title>Test Data Generator - Gym Admin</title>
     <style>
-        * {
-            box-sizing: border-box;
+        :root {
+            color-scheme: dark;
+            --bg: #111;
+            --panel: #181818;
+            --panel-2: #222;
+            --border: #333;
+            --text: #f5f5f5;
+            --muted: #a6a6a6;
+            --gold: #ebc069;
+            --green: #1db954;
+            --red: #f15e6c;
         }
+        * { box-sizing: border-box; }
         body {
-            font-family: system-ui, -apple-system, 'Segoe UI', monospace;
-            background: #f1f5f9;
             margin: 0;
-            padding: 24px 20px;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, sans-serif;
         }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 0px;
+        .layout { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 240px;
+            flex: 0 0 240px;
+            padding: 28px 12px;
+            border-right: 1px solid #282828;
+            background: #080808;
+        }
+        .sidebar h2 { margin: 0 16px 28px; font-size: 22px; }
+        .sidebar a {
+            display: block;
+            padding: 13px 16px;
+            color: #aaa;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 4px;
+        }
+        .sidebar a:hover, .sidebar a.active { background: #292929; color: var(--gold); }
+        .content { width: 100%; max-width: 1050px; padding: 40px 36px; }
+        h1 { margin: 0 0 8px; font-size: 30px; }
+        .intro { color: var(--muted); margin: 0 0 28px; }
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
             padding: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid #cbd5e1;
+            margin-bottom: 20px;
         }
-        h1 {
-            font-size: 1.5rem;
-            font-weight: 500;
-            margin: 0 0 6px 0;
-            color: #0f172a;
-            letter-spacing: -0.2px;
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(150px, 1fr));
+            gap: 16px;
+            align-items: end;
         }
-        .pattern-option {
-            margin: 12px 0;
-            padding: 12px 16px;
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            cursor: pointer;
-            transition: 0.1s linear;
-        }
-        .pattern-option:hover {
-            background: #f8fafc;
-            border-color: #94a3b8;
-        }
-        .pattern-option.selected {
-            background: #e2e8f0;
-            border-left: 4px solid #1e293b;
-            border-color: #1e293b;
-        }
-        .pattern-title {
-            font-weight: 500;
-            font-size: 0.95rem;
-            color: #0f172a;
-            font-family monospace;
-        }
-        button {
-            background: #1e293b;
-            color: white;
-            border: none;
-            padding: 12px 20px;
-            font-size: 0.9rem;
-            font-weight: 450;
-            cursor: pointer;
-            margin-top: 24px;
+        label { display: block; color: var(--muted); font-size: 13px; margin-bottom: 7px; }
+        input {
             width: 100%;
-            font-family: inherit;
-            border-radius: 0px;
-            transition: 0.1s linear;
+            padding: 11px 12px;
+            color: var(--text);
+            background: var(--panel-2);
+            border: 1px solid #444;
+            border-radius: 6px;
+            font: inherit;
         }
-        button:hover:not(:disabled) {
-            background: #0f172a;
+        input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+        .buttons { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+        button {
+            border: 0;
+            border-radius: 6px;
+            padding: 11px 16px;
+            color: #111;
+            background: var(--gold);
+            font-weight: 700;
+            cursor: pointer;
         }
-        button:disabled {
-            opacity: 0.6;
-            cursor: default;
+        button:hover { filter: brightness(1.08); }
+        button:disabled { opacity: .55; cursor: wait; }
+        button.danger { color: #fff; background: #8f2634; }
+        .notice { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 18px 0 0; }
+        .notice strong { color: var(--gold); }
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
         }
-        .notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            background: #1e293b;
-            color: white;
-            font-size: 0.85rem;
-            transform: translateY(80px);
-            opacity: 0;
-            transition: 0.2s ease;
-            z-index: 1000;
-            font-family: monospace;
-            border-left: 3px solid #94a3b8;
-        }
-        .notification.show {
-            transform: translateY(0);
-            opacity: 1;
-        }
-        .notification.success { background: #166534; border-left-color: #86efac; }
-        .notification.error { background: #991b1b; border-left-color: #fca5a5; }
-        hr {
-            margin: 20px 0;
-            border-color: #e2e8f0;
-        }
-        .stats-row {
-            display: flex;
-            justify-content: space-between;
-            background: #f8fafc;
-            padding: 8px 12px;
-            font-size: 0.8rem;
-            border-bottom: 1px solid #e2e8f0;
-            font-family: monospace;
-        }
-        .bare-title {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #475569;
-            margin-bottom: 12px;
+        .metric { padding: 16px; background: var(--panel-2); border-radius: 8px; }
+        .metric strong { display: block; color: var(--gold); font-size: 24px; margin-top: 4px; }
+        .status { min-height: 22px; margin-top: 16px; color: var(--green); }
+        .status.error { color: var(--red); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 11px 10px; text-align: left; border-bottom: 1px solid #303030; }
+        th { color: var(--gold); font-weight: 700; }
+        td { color: #ddd; }
+        @media (max-width: 800px) {
+            .layout { display: block; }
+            .sidebar { width: 100%; padding: 16px; border-right: 0; border-bottom: 1px solid #282828; }
+            .sidebar h2 { margin: 0 0 12px; }
+            .sidebar a { display: inline-block; padding: 9px 10px; }
+            .content { padding: 28px 18px; }
+            .controls, .summary { grid-template-columns: 1fr; }
+            .panel { padding: 18px; overflow-x: auto; }
+            table { min-width: 560px; }
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <h1>generate 3-month data (members + walk-ins)</h1>
-    <div class="bare-title">traffic pattern</div>
-    <div class="pattern-option" data-pattern="double-peak" onclick="selectPattern('double-peak')">
-        <div class="pattern-title">double peak</div>
+    <div class="layout">
+        <aside class="sidebar">
+            <h2>Gym Admin</h2>
+            <a href="firebase_crud.html">Register Member</a>
+            <a href="members.html">Members List</a>
+            <a href="occupancy.html">Gym Occupancy</a>
+            <a href="analytics.html">Analytics</a>
+            <a href="test-data.html" class="active">Test Data</a>
+        </aside>
+
+        <main class="content">
+            <h1>Test Data Generator</h1>
+            <p class="intro">Create clearly labeled sample activity for testing the analytics dashboard.</p>
+
+            <section class="panel">
+                <div class="controls">
+                    <div>
+                        <label for="days">Days to generate</label>
+                        <input id="days" type="number" min="1" max="365" value="30">
+                    </div>
+                    <div>
+                        <label for="membersPerDay">Memberships per day</label>
+                        <input id="membersPerDay" type="text" value="1-2" inputmode="numeric">
+                    </div>
+                    <div>
+                        <label for="walkinsPerDay">Walk-ins per day</label>
+                        <input id="walkinsPerDay" type="text" value="20-40" inputmode="numeric">
+                    </div>
+                </div>
+                <div class="buttons">
+                    <button id="previewButton" type="button">Preview Data</button>
+                    <button id="generateButton" type="button">Generate Test Data</button>
+                    <button id="deleteButton" class="danger" type="button">Delete Test Data</button>
+                </div>
+                <p class="notice">
+                    Only records with the <strong>TEST_</strong> or <strong>WALKIN_TEST_</strong> key prefix are created.
+                    Existing members and normal walk-ins are not changed. Generating again replaces only those same test keys.
+                </p>
+                <div id="status" class="status" role="status"></div>
+            </section>
+
+            <div class="summary">
+                <div class="metric">Days<strong id="summaryDays">30</strong></div>
+                <div class="metric">Memberships<strong id="summaryMembers">0</strong></div>
+                <div class="metric">Walk-ins<strong id="summaryWalkins">0</strong></div>
+            </div>
+
+            <section class="panel">
+                <h2>Daily Preview</h2>
+                <div id="preview">
+                    <p class="notice">Click Preview Data to see the records that will be generated.</p>
+                </div>
+            </section>
+        </main>
     </div>
-    <div class="pattern-option" data-pattern="evening-heavy" onclick="selectPattern('evening-heavy')">
-        <div class="pattern-title">evening heavy</div>
-    </div>
-    <div class="pattern-option" data-pattern="morning-rush" onclick="selectPattern('morning-rush')">
-        <div class="pattern-title">morning rush</div>
-    </div>
-    <div class="pattern-option" data-pattern="weekend-warrior" onclick="selectPattern('weekend-warrior')">
-        <div class="pattern-title">weekend warrior</div>
-    </div>
-    <button id="generateBtn">generate 90-day data</button>
-    <hr />
-    <div class="stats-row"><span>members</span><span>40</span></div>
-    <div class="stats-row"><span>walk-ins (approx)</span><span>200-320</span></div>
-    <div class="stats-row"><span>time span</span><span>90 days</span></div>
-    <div class="stats-row"><span>total visits est</span><span>4500+</span></div>
-</div>
-<div id="notification" class="notification"></div>
 
-<script>
-    // ---------- FIREBASE ----------
-    const firebaseConfig = {
-        apiKey: "AIzaSyB6x0Si8OoiD3UDDMjXgZTMOdfv8neMtik",
-        authDomain: "gym-database-f4b61.firebaseapp.com",
-        databaseURL: "https://gym-database-f4b61-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "gym-database-f4b61",
-        storageBucket: "gym-database-f4b61.firebasestorage.app",
-        messagingSenderId: "79575587778",
-        appId: "1:79575587778:web:55b218534fde16847ad45b",
-        measurementId: "G-BGPJNP62J5"
-    };
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    <script type="module">
+        import { db } from './js/database_init.js';
+        import { ref, get, set, remove } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
-    // pattern definitions
-    const patterns = {
-        'double-peak': {
-            name: 'Double Peak',
-            hourlyMultipliers: [1,1,1,1,2,5,8,10,9,6,4,5,6,4,3,4,6,9,12,10,7,5,3,2],
-            weeklyGrowthBase: 12,
-            volatility: 0.08
-        },
-        'evening-heavy': {
-            name: 'Evening Heavy',
-            hourlyMultipliers: [1,1,1,1,2,3,4,5,4,3,4,5,6,5,4,5,8,12,15,14,10,6,3,2],
-            weeklyGrowthBase: 6,
-            volatility: 0.05
-        },
-        'morning-rush': {
-            name: 'Morning Rush',
-            hourlyMultipliers: [2,2,3,4,6,9,12,14,10,7,5,6,5,4,3,3,4,5,6,5,4,3,2,2],
-            weeklyGrowthBase: -5,
-            volatility: 0.07
-        },
-        'weekend-warrior': {
-            name: 'Weekend Warrior',
-            hourlyMultipliers: [1,1,1,1,2,4,6,8,7,5,6,8,9,7,5,6,9,11,10,8,6,4,2,1],
-            weeklyGrowthBase: 18,
-            volatility: 0.22
+        const $ = id => document.getElementById(id);
+        const status = $('status');
+        let previewRows = [];
+
+        function parseRange(value, fallbackMin, fallbackMax) {
+            const numbers = String(value).match(/\d+/g)?.map(Number) || [];
+            const min = Math.max(0, numbers[0] ?? fallbackMin);
+            const max = Math.max(min, numbers[1] ?? numbers[0] ?? fallbackMax);
+            return { min, max };
         }
-    };
 
-    let selectedPattern = 'double-peak';
-    const firstNames = ['Alex','Jordan','Taylor','Casey','Morgan','Riley','Avery','Quinn','Blake','Dakota','Emerson','Finley','Harley','Justice','Kai','Phoenix','Rowan','Sage','Skyler','Spencer','Charlie','Drew','Eden','Elliot','Frankie','Gray','Harper','Jules','Kelly','Lane','Marley','Max','Nico','Oakley','Peyton','Reese','River','Rory','Salem','Shiloh'];
-    const lastNames = ['Anderson','Baker','Carter','Davis','Edwards','Foster','Graham','Harris','Irwin','Johnson','Keller','Lawson','Miller','Nelson','Owens','Parker','Quinn','Roberts','Simpson','Thompson','Underwood','Vance','Walker','Xavier','Young','Zimmer','Archer','Brooks','Chase','Drake','Flynn','Grant','Hunt','Jones','Knight','Lee','Mason','North','Pierce','Reed'];
-
-    const generateBtn = document.getElementById('generateBtn');
-    const notificationDiv = document.getElementById('notification');
-
-    function selectPattern(pattern) {
-        selectedPattern = pattern;
-        document.querySelectorAll('.pattern-option').forEach(el => el.classList.remove('selected'));
-        document.querySelector(`[data-pattern="${pattern}"]`).classList.add('selected');
-    }
-
-    function showNotification(msg, type = 'success') {
-        notificationDiv.textContent = msg;
-        notificationDiv.className = `notification ${type} show`;
-        setTimeout(() => notificationDiv.classList.remove('show'), 4500);
-    }
-
-    function selectHourByPattern(patternObj, isWeekend) {
-        let multipliers = [...patternObj.hourlyMultipliers];
-        if (isWeekend && selectedPattern === 'weekend-warrior') {
-            multipliers = multipliers.map((val, idx) => (idx >= 8 && idx <= 21) ? val * 1.4 : val);
+        function randomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
         }
-        const total = multipliers.reduce((a,b)=>a+b,0);
-        let rand = Math.random() * total;
-        let accum = 0;
-        for(let i=0;i<24;i++) {
-            accum += multipliers[i];
-            if(rand <= accum) return i;
-        }
-        return 17;
-    }
 
-    function generateWalkinsForDate(date, patternObj, weeklyFactor) {
-        const dayOfWeek = date.getDay();
-        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-        let baseWalkins = isWeekend ? 5 : 3;
-        if (selectedPattern === 'weekend-warrior') baseWalkins = isWeekend ? 8 : 2;
-        if (selectedPattern === 'evening-heavy') baseWalkins = isWeekend ? 6 : 4;
-        if (selectedPattern === 'morning-rush') baseWalkins = isWeekend ? 4 : 3;
-        
-        let adjustedCount = Math.max(1, Math.floor(baseWalkins * weeklyFactor));
-        adjustedCount += Math.floor(Math.random() * 3) - 1;
-        adjustedCount = Math.min(12, Math.max(1, adjustedCount));
-        
-        const walkins = [];
-        for(let w=0; w<adjustedCount; w++) {
-            const hour = selectHourByPattern(patternObj, isWeekend);
-            const minute = Math.floor(Math.random() * 60);
-            const checkinTime = new Date(date);
-            checkinTime.setHours(hour, minute, 0, 0);
-            const duration = 30 + Math.floor(Math.random() * 70);
-            const checkoutTime = new Date(checkinTime.getTime() + duration * 60000);
-            walkins.push({
-                checkin: checkinTime.toISOString(),
-                checkout: checkoutTime.toISOString(),
-                time_spent: duration,
-                date: date.toISOString().split('T')[0]
-            });
+        function dateForOffset(offset, days) {
+            const date = new Date();
+            date.setHours(0, 0, 0, 0);
+            date.setDate(date.getDate() - (days - 1 - offset));
+            return date;
         }
-        return walkins;
-    }
 
-    async function generateData() {
-        generateBtn.disabled = true;
-        generateBtn.textContent = 'generating ...';
-        
-        const patternObj = patterns[selectedPattern];
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - 90);
-        
-        try {
-            await db.ref('Customers').remove();
-            
-            // members (40)
-            const totalMembers = 40;
-            const memberList = [];
-            for (let i = 0; i < totalMembers; i++) {
-                const firstName = firstNames[i % firstNames.length];
-                const lastName = lastNames[i % lastNames.length];
-                const uid = (30000000 + i).toString();
-                const membershipType = Math.random() > 0.25 ? 'regular' : 'student';
-                const monthlyRate = membershipType === 'regular' ? 800 : 600;
-                memberList.push({
-                    key: uid,
-                    uid: uid,
-                    data: {
-                        personal_info: { firstname: firstName, lastname: lastName, phone: `555-${2000+i}`, membership_type: membershipType },
-                        membership: {
-                            status: 'active', plan: membershipType, plan_display: membershipType === 'regular' ? 'Regular' : 'Student',
-                            monthly_rate: monthlyRate, payment_amount: monthlyRate, months_paid: 3,
-                            start_date: startDate.toISOString().split('T')[0],
-                            end_date: new Date(endDate.getTime() + 90*24*60*60000).toISOString().split('T')[0],
-                            remaining_days: 90, last_updated: endDate.toISOString().split('T')[0]
-                        },
-                        gym_data: { uid: parseInt(uid), is_checked_in: false, total_visits: 0, total_time_spent: 0 },
-                        attendance_history: []
-                    }
+        function dateString(date) {
+            return date.toISOString().split('T')[0];
+        }
+
+        function makePreview() {
+            const days = Math.min(365, Math.max(1, parseInt($('days').value, 10) || 30));
+            const memberRange = parseRange($('membersPerDay').value, 1, 2);
+            const walkinRange = parseRange($('walkinsPerDay').value, 20, 40);
+            previewRows = [];
+
+            for (let day = 0; day < days; day++) {
+                const date = dateForOffset(day, days);
+                previewRows.push({
+                    date: dateString(date),
+                    members: randomInt(memberRange.min, memberRange.max),
+                    walkins: randomInt(walkinRange.min, walkinRange.max)
                 });
             }
-            
-            // weekly growth factors
-            let weeklyGrowthFactors = [1.0];
-            let currentFactor = 1.0;
-            const weeklyBase = patternObj.weeklyGrowthBase / 100;
-            for (let week = 1; week <= 14; week++) {
-                let growthDelta = weeklyBase;
-                if (selectedPattern === 'weekend-warrior') growthDelta = (week % 2 === 0) ? 0.18 : -0.10;
-                const volatilityFactor = 1 + (patternObj.volatility * (Math.random() - 0.5));
-                let newFactor = currentFactor * (1 + growthDelta * volatilityFactor);
-                newFactor = Math.min(2.1, Math.max(0.65, newFactor));
-                weeklyGrowthFactors.push(newFactor);
-                currentFactor = newFactor;
-            }
-            
-            const memberAttendance = new Map();
-            for (let m of memberList) memberAttendance.set(m.uid, []);
-            
-            const allWalkins = [];
-            const currentDate = new Date(startDate);
-            let dayCount = 0;
-            
-            while (currentDate <= endDate) {
-                const dateCopy = new Date(currentDate);
-                const dateStr = dateCopy.toISOString().split('T')[0];
-                const dayOfWeek = dateCopy.getDay();
-                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-                const daysSinceStart = Math.floor((dateCopy - startDate) / (1000*3600*24));
-                const weekIdx = Math.floor(daysSinceStart / 7);
-                const weeklyFactor = weeklyGrowthFactors[weekIdx] || 1.0;
-                
-                // members attendance
-                for (let member of memberList) {
-                    let visitProb = 0.38;
-                    if (isWeekend && selectedPattern === 'weekend-warrior') visitProb = 0.68;
-                    if (!isWeekend && selectedPattern === 'double-peak') visitProb = 0.45;
-                    if (selectedPattern === 'evening-heavy' && (dayOfWeek >=1 && dayOfWeek <=5)) visitProb = 0.48;
-                    visitProb = Math.min(0.85, visitProb * (0.7 + weeklyFactor * 0.6));
-                    
-                    const randVal = Math.random();
-                    let visitsToday = 0;
-                    if (randVal < visitProb) visitsToday = 1;
-                    else if (randVal < visitProb + 0.22) visitsToday = 2;
-                    else if (randVal < visitProb + 0.3) visitsToday = 3;
-                    
-                    if (visitsToday === 0) continue;
-                    
-                    for (let v=0; v<visitsToday; v++) {
-                        const hour = selectHourByPattern(patternObj, isWeekend);
-                        const minute = Math.floor(Math.random() * 60);
-                        const checkinTime = new Date(dateCopy);
-                        checkinTime.setHours(hour, minute, 0, 0);
-                        const duration = 45 + Math.floor(Math.random() * 55);
-                        const checkoutTime = new Date(checkinTime.getTime() + duration * 60000);
-                        const existing = memberAttendance.get(member.uid) || [];
-                        existing.push({
-                            checkin: checkinTime.toISOString(),
-                            checkout: checkoutTime.toISOString(),
-                            time_spent: duration,
-                            date: dateStr
-                        });
-                        memberAttendance.set(member.uid, existing);
-                    }
-                }
-                
-                // walk-ins generation for this day
-                const dailyWalkins = generateWalkinsForDate(dateCopy, patternObj, weeklyFactor);
-                for (let wk of dailyWalkins) {
-                    const timestamp = new Date(wk.checkin).getTime();
-                    const walkinKey = `WALKIN_${dateStr}_${timestamp}_${Math.floor(Math.random()*10000)}`;
-                    const shortId = timestamp.toString().slice(-4);
-                    const walkinObj = {
-                        personal_info: { firstname: "WALK-IN", lastname: `#${shortId}`, uid: walkinKey, type: "daypass" },
-                        gym_data: {
-                            is_checked_in: false,
-                            last_checkin: wk.checkin,
-                            last_checkout: wk.checkout,
-                            total_visits: 1,
-                            total_time_spent: wk.time_spent,
-                            uid: walkinKey
-                        },
-                        membership: { status: "completed", remaining_days: 0, start_date: dateStr, end_date: dateStr },
-                        attendance_history: [{
-                            checkin: wk.checkin,
-                            checkout: wk.checkout,
-                            time_spent: wk.time_spent,
-                            date: dateStr
-                        }]
-                    };
-                    allWalkins.push({ key: walkinKey, data: walkinObj });
-                }
-                
-                dayCount++;
-                currentDate.setDate(currentDate.getDate() + 1);
-            }
-            
-            // finalize members data
-            for (let member of memberList) {
-                const visits = memberAttendance.get(member.uid) || [];
-                visits.sort((a,b) => new Date(a.checkin) - new Date(b.checkin));
-                const totalTime = visits.reduce((sum, v) => sum + (v.time_spent || 0), 0);
-                member.data.attendance_history = visits;
-                member.data.gym_data.total_visits = visits.length;
-                member.data.gym_data.total_time_spent = totalTime;
-                member.data.gym_data.is_checked_in = false;
-            }
-            
-            // upload members
-            for (let i=0; i<memberList.length; i++) {
-                await db.ref(`Customers/${memberList[i].key}`).set(memberList[i].data);
-                if ((i+1) % 15 === 0) console.log(`members: ${i+1}/${memberList.length}`);
-            }
-            
-            // upload walk-ins
-            for (let i=0; i<allWalkins.length; i++) {
-                await db.ref(`Customers/${allWalkins[i].key}`).set(allWalkins[i].data);
-                if ((i+1) % 80 === 0) console.log(`walk-ins: ${i+1}/${allWalkins.length}`);
-            }
-            
-            // prediction node
-            const now = new Date();
-            const nextHour = (now.getHours() + 1) % 24;
-            const patternMulti = patternObj.hourlyMultipliers[nextHour];
-            const predictedVisits = Math.max(4, Math.min(32, Math.round(38 * 2.4 / 24 * patternMulti * 1.4)));
-            let confidence = (selectedPattern === 'double-peak') ? 0.82 : (selectedPattern === 'weekend-warrior' ? 0.52 : 0.72);
-            await db.ref('Trend24h').set({
-                nextHour: predictedVisits,
-                confidence: confidence,
-                timestamp: now.toISOString(),
-                nextHourTime: `${nextHour}:00`,
-                pattern: patternObj.name
-            });
-            
-            let weeklyGrowthFinal = patternObj.weeklyGrowthBase + (Math.random() * 4 - 2);
-            if (selectedPattern === 'weekend-warrior') weeklyGrowthFinal = (Math.random() > 0.6 ? 16 : -8);
-            await db.ref('WeeklyGrowthRate').set({
-                pct: parseFloat(weeklyGrowthFinal.toFixed(1)),
-                thisWeekSum: Math.round(38 * 7 * (1 + weeklyGrowthFinal/100)),
-                lastWeekSum: 38 * 7,
-                timestamp: now.toISOString(),
-                pattern: patternObj.name,
-                trend: weeklyGrowthFinal > 0 ? 'up' : 'down'
-            });
-            
-            await db.ref('metadata/stats').set({
-                total_walkins_generated: allWalkins.length,
-                total_members: totalMembers,
-                date_range_days: dayCount,
-                last_generated: now.toISOString(),
-                pattern_used: patternObj.name
-            });
-            
-            const totalMemberVisits = memberList.reduce((acc, m) => acc + (m.data.gym_data.total_visits || 0), 0);
-            const totalVisitsAll = totalMemberVisits + allWalkins.length;
-            showNotification(`done. ${totalMembers} members + ${allWalkins.length} walk-ins | total visits: ${totalVisitsAll}`, 'success');
-        } catch (err) {
-            console.error(err);
-            showNotification(`error: ${err.message}`, 'error');
-        } finally {
-            generateBtn.disabled = false;
-            generateBtn.textContent = 'generate 90-day data';
+
+            $('summaryDays').textContent = days;
+            $('summaryMembers').textContent = previewRows.reduce((sum, row) => sum + row.members, 0);
+            $('summaryWalkins').textContent = previewRows.reduce((sum, row) => sum + row.walkins, 0);
+            $('preview').innerHTML = `
+                <table>
+                    <thead><tr><th>Date</th><th>Memberships</th><th>Walk-ins</th></tr></thead>
+                    <tbody>${previewRows.map(row => `
+                        <tr><td>${row.date}</td><td>${row.members}</td><td>${row.walkins}</td></tr>
+                    `).join('')}</tbody>
+                </table>`;
+            return previewRows;
         }
-    }
-    
-    window.selectPattern = selectPattern;
-    generateBtn.addEventListener('click', generateData);
-    selectPattern('double-peak');
-</script>
+
+        function makeMember(date, index) {
+            const uid = `TEST_${date.replaceAll('-', '')}_${String(index + 1).padStart(2, '0')}`;
+            const start = new Date(`${date}T08:00:00`);
+            const end = new Date(start);
+            end.setMonth(end.getMonth() + 1);
+            const checkin = new Date(start);
+            checkin.setHours(randomInt(6, 20), randomInt(0, 59), 0, 0);
+            const checkout = new Date(checkin.getTime() + randomInt(45, 120) * 60000);
+            return {
+                key: uid,
+                value: {
+                    personal_info: {
+                        firstname: 'Test',
+                        lastname: `Member ${index + 1}`,
+                        phone: '09000000000',
+                        uid,
+                        membership_type: 'regular',
+                        fb_name: 'TEST DATA',
+                        gender: 'Other',
+                        age: 25,
+                        home_address: 'TEST DATA ONLY'
+                    },
+                    membership: {
+                        status: 'active',
+                        plan: 'regular',
+                        plan_display: 'Regular',
+                        monthly_rate: 500,
+                        payment_amount: 500,
+                        months_paid: 1,
+                        start_date: date,
+                        end_date: dateString(end),
+                        remaining_days: Math.max(0, Math.ceil((end - new Date()) / 86400000))
+                    },
+                    gym_data: {
+                        is_checked_in: false,
+                        last_checkin: checkin.toISOString(),
+                        last_checkout: checkout.toISOString(),
+                        total_visits: 1,
+                        total_time_spent: Math.round((checkout - checkin) / 60000),
+                        uid
+                    },
+                    attendance_history: [{
+                        checkin: checkin.toISOString(),
+                        checkout: checkout.toISOString(),
+                        time_spent: Math.round((checkout - checkin) / 60000),
+                        date
+                    }]
+                }
+            };
+        }
+
+        function makeWalkin(date, index) {
+            const key = `WALKIN_TEST_${date.replaceAll('-', '')}_${String(index + 1).padStart(2, '0')}`;
+            const checkin = new Date(`${date}T00:00:00`);
+            checkin.setHours(randomInt(6, 21), randomInt(0, 59), 0, 0);
+            const checkout = new Date(checkin.getTime() + randomInt(30, 150) * 60000);
+            return {
+                key,
+                value: {
+                    personal_info: { firstname: 'WALK-IN TEST', lastname: `#${index + 1}`, uid: key, type: 'daypass' },
+                    gym_data: {
+                        is_checked_in: false,
+                        last_checkin: checkin.toISOString(),
+                        last_checkout: checkout.toISOString(),
+                        total_visits: 1,
+                        total_time_spent: Math.round((checkout - checkin) / 60000),
+                        uid: key
+                    },
+                    membership: { status: 'completed', remaining_days: 0, start_date: date, end_date: date, payment_amount: 40 },
+                    attendance_history: [{
+                        checkin: checkin.toISOString(),
+                        checkout: checkout.toISOString(),
+                        time_spent: Math.round((checkout - checkin) / 60000),
+                        date
+                    }],
+                    payment: 40,
+                    timestamp: checkin.getTime()
+                }
+            };
+        }
+
+        function buildRecords(rows) {
+            return rows.flatMap(row => [
+                ...Array.from({ length: row.members }, (_, index) => makeMember(row.date, index)),
+                ...Array.from({ length: row.walkins }, (_, index) => makeWalkin(row.date, index))
+            ]);
+        }
+
+        function setStatus(message, isError = false) {
+            status.textContent = message;
+            status.classList.toggle('error', isError);
+        }
+
+        $('previewButton').addEventListener('click', () => {
+            makePreview();
+            setStatus('Preview updated. No data has been written.');
+        });
+
+        $('generateButton').addEventListener('click', async () => {
+            const rows = previewRows.length ? previewRows : makePreview();
+            if (!confirm(`Generate ${$('summaryMembers').textContent} memberships and ${$('summaryWalkins').textContent} walk-ins?`)) return;
+            $('generateButton').disabled = true;
+            try {
+                const updates = {};
+                buildRecords(rows).forEach(record => { updates[`Customers/${record.key}`] = record.value; });
+                await Promise.all(Object.entries(updates).map(([path, value]) => set(ref(db, path), value)));
+                setStatus(`Generated ${Object.keys(updates).filter(key => key.includes('TEST_')).length} labeled test records.`);
+            } catch (error) {
+                setStatus(`Could not generate test data: ${error.message}`, true);
+            } finally {
+                $('generateButton').disabled = false;
+            }
+        });
+
+        $('deleteButton').addEventListener('click', async () => {
+            if (!confirm('Delete all TEST_ memberships and WALKIN_TEST_ records? Real data will not be touched.')) return;
+            $('deleteButton').disabled = true;
+            try {
+                const snapshot = await get(ref(db, 'Customers'));
+                const keys = [];
+                snapshot.forEach(child => {
+                    if (child.key.startsWith('TEST_') || child.key.startsWith('WALKIN_TEST_')) keys.push(child.key);
+                });
+                await Promise.all(keys.map(key => remove(ref(db, `Customers/${key}`))));
+                setStatus(`Deleted ${keys.length} labeled test records.`);
+            } catch (error) {
+                setStatus(`Could not delete test data: ${error.message}`, true);
+            } finally {
+                $('deleteButton').disabled = false;
+            }
+        });
+    </script>
 </body>
 </html>

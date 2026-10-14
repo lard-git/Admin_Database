@@ -1,5 +1,5 @@
 import { db } from './database_init.js';
-import { ref, set, get, update, remove } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { ref, set, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
 const FnameInp = document.getElementById("FnameInp");
 const LnameInp = document.getElementById("LnameInp");
@@ -101,22 +101,6 @@ function validateForm() {
     return true;
 }
 
-function clearForm() {
-    FnameInp.value = "";
-    LnameInp.value = "";
-    MobileInp.value = "";
-    UidInp.value = "";
-    PaymentInp.value = "";
-    MonthsSlider.value = "1";
-    updatePaymentDisplay(1);
-    qrImg.src = "";
-    qrImg.alt = "QR Code will appear here";
-    if (FbNameInp) FbNameInp.value = "";
-    if (GenderInp) GenderInp.value = "";
-    if (AgeInp) AgeInp.value = "";
-    if (AddressInp) AddressInp.value = "";
-}
-
 function random8Digit() {
     return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
@@ -203,116 +187,10 @@ async function AddData() {
     }
 }
 
-async function ReadData() {
-    if (!UidInp.value.trim()) {
-        alert("Please enter a UID to find member");
-        return;
-    }
-
-    try {
-        const snap = await get(ref(db, "Customers/" + UidInp.value));
-        if (!snap.exists()) {
-            alert("No Member Found with this UID");
-            return;
-        }
-
-        const data = snap.val();
-
-        FnameInp.value = data.personal_info?.firstname || "";
-        LnameInp.value = data.personal_info?.lastname || "";
-        MobileInp.value = data.personal_info?.phone || "";
-        if (FbNameInp) FbNameInp.value = data.personal_info?.fb_name || "";
-        if (GenderInp) GenderInp.value = data.personal_info?.gender || "";
-        if (AgeInp) AgeInp.value = data.personal_info?.age || "";
-        if (AddressInp) AddressInp.value = data.personal_info?.home_address || "";
-
-        if (data.membership) {
-            PaymentInp.value = data.membership.payment_amount || 500;
-            const months = data.membership.months_paid || 1;
-            MonthsSlider.value = months;
-            updatePaymentDisplay(months);
-        }
-
-        generateQR(UidInp.value);
-        alert("Member data loaded successfully!");
-    } catch (err) {
-        alert("Error finding member: " + err.message);
-    }
-}
-
-async function UpdateData() {
-    if (!UidInp.value.trim()) {
-        alert("Please enter a UID to update member");
-        return;
-    }
-
-    if (!validateForm()) return;
-
-    try {
-        const paymentAmount = parseInt(PaymentInp.value) || 500;
-        const selectedMonths = parseInt(MonthsSlider.value) || 1;
-
-        const startDate = new Date();
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() + selectedMonths);
-
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
-        const remainingDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-
-        await update(ref(db, "Customers/" + UidInp.value), {
-            "personal_info/firstname": FnameInp.value.trim(),
-            "personal_info/lastname": LnameInp.value.trim(),
-            "personal_info/phone": MobileInp.value.trim(),
-            "personal_info/fb_name": FbNameInp?.value.trim() || "",
-            "personal_info/gender": GenderInp?.value || "",
-            "personal_info/age": AgeInp?.value ? parseInt(AgeInp.value) : "",
-            "personal_info/home_address": AddressInp?.value.trim() || "",
-            "membership/payment_amount": paymentAmount,
-            "membership/months_paid": selectedMonths,
-            "membership/start_date": startDateStr,
-            "membership/end_date": endDateStr,
-            "membership/remaining_days": remainingDays,
-            "membership/last_updated": startDateStr
-        });
-
-        alert(`Member Updated Successfully!\nPayment: ₱${paymentAmount}\nDuration: ${selectedMonths} month(s)\nRemaining Days: ${remainingDays}`);
-        generateQR(UidInp.value);
-    } catch (err) {
-        alert("Error updating member: " + err.message);
-    }
-}
-
-async function DeleteData() {
-    if (!UidInp.value.trim()) {
-        alert("Please enter a UID to delete member");
-        return;
-    }
-
-    if (!confirm("Are you sure you want to delete this member? This action cannot be undone.")) {
-        return;
-    }
-
-    try {
-        await remove(ref(db, "Customers/" + UidInp.value));
-        alert("Member Deleted Successfully!");
-        clearForm();
-    } catch (err) {
-        alert("Error deleting member: " + err.message);
-    }
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     initializePaymentCalculator();
 
     document.getElementById("AddBtn").onclick = AddData;
-
-    const readBtn = document.getElementById("ReadBtn");
-    const updateBtn = document.getElementById("UpdateBtn");
-    const deleteBtn = document.getElementById("DeleteBtn");
-    if (readBtn) readBtn.onclick = ReadData;
-    if (updateBtn) updateBtn.onclick = UpdateData;
-    if (deleteBtn) deleteBtn.onclick = DeleteData;
 
     [FnameInp, LnameInp, MobileInp, UidInp, PaymentInp, FbNameInp, AgeInp, AddressInp].forEach(input => {
         if (!input) return;

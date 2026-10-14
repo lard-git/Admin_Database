@@ -8,17 +8,10 @@
     <script type="module" src="js/analytics.js"></script>
     <script type="module" src="js/ui.js"></script>
     <link rel="stylesheet" href="resources/analytics.css">
+    <link rel="stylesheet" href="resources/theme.css">
+  <script>(function(){var t=localStorage.getItem("gym_theme");document.documentElement.dataset.theme=["dark","light","amoled","cyberpunk","ink","arcade","gold"].indexOf(t)>-1?t:"dark"})()</script>
 </head>
 <body>
-    <div class="sidebar">
-        <h2>Gym Admin</h2>
-        <a href="firebase_crud.html">Register Member</a>
-        <a href="members.html">Members List</a>
-        <a href="occupancy.html">Gym Occupancy</a>
-        <a href="analytics.html" class="active">Analytics</a>
-        <button id="themeToggle" class="theme-toggle">Light Mode</button>
-    </div>
-
     <div class="content">
         <div class="page-header">
             <h1>Gym Analytics Dashboard</h1>
@@ -28,7 +21,16 @@
                     <option value="30" selected>Last 30 Days</option>
                     <option value="90">Last 90 Days</option>
                     <option value="365">Last Year</option>
+                    <option value="month">Specific month…</option>
+                    <option value="custom">Custom range…</option>
                 </select>
+                <input type="month" id="rangeMonth" aria-label="Month" hidden>
+                <span id="rangeCustom" hidden>
+                    <input type="date" id="rangeFrom" aria-label="From date">
+                    <span class="range-sep">to</span>
+                    <input type="date" id="rangeTo" aria-label="To date">
+                </span>
+                <small id="rangeLabel"></small>
             </div>
         </div>
 
@@ -36,7 +38,7 @@
             <div class="summary-card ai">
                  <h3>Next-Hour Forecast</h3>
                  <span id="aiNextHour" style="font-size:32px;">—</span>
-            <small id="aiConfidence" style="color:#666;">confidence —</small>
+            <small id="aiConfidence" style="color:var(--fa);">confidence —</small>
             </div>
             <div class="summary-card">
                 <h3>7-Day Growth</h3>
@@ -104,7 +106,7 @@
 
         <div class="charts-grid" style="margin-top:24px;">
             <div class="chart-card" style="grid-column: 1 / -1;">
-                <h3>Monthly Revenue <small style="font-size:12px;color:#6a6a6a;font-weight:normal;">— member fees split per month + walk-ins</small></h3>
+                <h3>Monthly Revenue <small style="font-size:12px;color:var(--fa);font-weight:normal;">— member fees split per month + walk-ins</small></h3>
                 <div class="chart-container" style="height:280px;">
                     <canvas id="monthlyRevenueChart"></canvas>
                 </div>
@@ -119,7 +121,7 @@
       onValue(ref(db, 'WeeklyGrowthRate'), s => {
         const pct = s.val()?.pct ?? 0;
         document.getElementById('growthText').textContent = (pct > 0 ? '+' : '') + pct + '%';
-        document.getElementById('growthText').style.color = pct > 0 ? '#28a745' : '#dc3545';
+        document.getElementById('growthText').style.color = pct > 0 ? 'var(--ok)' : 'var(--bad)';
       });
     </script>
 </body>

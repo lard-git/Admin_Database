@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gym Admin - Register Member</title>
     <link rel="stylesheet" href="resources/firebase-crud.css">
+    <link rel="stylesheet" href="resources/theme.css">
+    <script>(function(){var t=localStorage.getItem("gym_theme");document.documentElement.dataset.theme=["dark","light","amoled","cyberpunk","ink","arcade","gold"].indexOf(t)>-1?t:"dark"})()</script>
 </head>
 <body>
     <div id="authOverlay">
@@ -14,16 +16,6 @@
             <button id="loginBtn">Unlock</button>
             <div class="error" id="authErr"></div>
         </div>
-    </div>
-
-    <div class="sidebar">
-        <h2>Gym Admin</h2>
-        <a href="firebase_crud.html" class="active"> Register Member</a>
-        <a href="members.html"> Members List</a>
-        <a href="occupancy.html"> Gym Occupancy</a>
-        <a href="analytics.html">Analytics</a>
-        <a href="#" id="logout">Logout</a>
-        <button id="themeToggle" class="theme-toggle">Light Mode</button>
     </div>
 
     <div class="content">
@@ -138,44 +130,5 @@
 
     <script type="module" src="js/app.js"></script>
     <script type="module" src="js/ui.js"></script>
-    <script type="module">
-        import { AUTH } from './js/auth.js';
-
-        const overlay  = document.getElementById('authOverlay');
-        const loginBtn = document.getElementById('loginBtn');
-        const pwdInp   = document.getElementById('pwdInp');
-        const authErr  = document.getElementById('authErr');
-        const authBox  = document.getElementById('authBox');
-
-        if (sessionStorage.getItem('gym_admin') === 'yes') {
-            overlay.style.display = 'none';
-        }
-
-        loginBtn.addEventListener('click', async () => {
-            loginBtn.disabled = true;
-            loginBtn.textContent = '...';
-            const ok = await AUTH.login(pwdInp.value);
-            loginBtn.disabled = false;
-            loginBtn.textContent = 'Unlock';
-            if (ok) {
-                overlay.style.display = 'none';
-            } else {
-                authErr.textContent = 'Wrong password, please try again.';
-                authBox.classList.add('shake');
-                setTimeout(() => authBox.classList.remove('shake'), 500);
-                pwdInp.value = '';
-                pwdInp.focus();
-            }
-        });
-
-        pwdInp.addEventListener('keypress', e => {
-            if (e.key === 'Enter') loginBtn.click();
-        });
-
-        document.getElementById('logout').addEventListener('click', e => {
-            e.preventDefault();
-            AUTH.logout();
-        });
-    </script>
 </body>
 </html>

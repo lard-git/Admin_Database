@@ -628,7 +628,7 @@ async function showIncomeHistory() {
     const content = document.getElementById('incomeHistoryContent');
     if (!modal || !content) return;
     modal.style.display = 'flex';
-    content.innerHTML = '<p style="color:#6a6a6a;text-align:center;padding:24px;">Loading…</p>';
+    content.innerHTML = '<p style="color:var(--fa);text-align:center;padding:24px;">Loading…</p>';
 
     const today = new Date();
     const currentMonthStr = today.toISOString().slice(0, 7);
@@ -644,7 +644,7 @@ async function showIncomeHistory() {
         custSnap = await get(ref(db, 'Customers'));
     } catch (e) {
         console.warn('Customers read failed:', e);
-        content.innerHTML = '<p style="color:#ef5350;text-align:center;padding:24px;">Failed to load data. Check Firebase permissions.</p>';
+        content.innerHTML = '<p style="color:var(--bad);text-align:center;padding:24px;">Failed to load data. Check Firebase permissions.</p>';
         return;
     }
 
@@ -691,7 +691,7 @@ function _renderIncomeMonth(vm) {
     if (!content) return;
 
     if (!vm) {
-        content.innerHTML = '<p style="color:#6a6a6a;text-align:center;padding:24px;">Loading…</p>';
+        content.innerHTML = '<p style="color:var(--fa);text-align:center;padding:24px;">Loading…</p>';
         if (rangeEl) rangeEl.textContent = '';
         return;
     }
@@ -732,9 +732,9 @@ function _renderIncomeMonth(vm) {
         const rowTotal = membership + walkin;
         const cls = isToday ? ' class="inc-today-row"' : '';
         rows.push(`<tr${cls}>
-            <td>${dayLabel}${isToday ? ' <span style="color:#ebc069;font-size:10px;">(today)</span>' : ''}</td>
-            <td style="color:#ebc069;">₱${membership.toLocaleString()}</td>
-            <td style="color:#4fc3f7;">₱${walkin.toLocaleString()}</td>
+            <td>${dayLabel}${isToday ? ' <span style="color:var(--ac);font-size:10px;">(today)</span>' : ''}</td>
+            <td style="color:var(--ac);">₱${membership.toLocaleString()}</td>
+            <td style="color:var(--in);">₱${walkin.toLocaleString()}</td>
             <td style="font-weight:bold;">₱${rowTotal.toLocaleString()}</td>
         </tr>`);
     }
@@ -746,11 +746,11 @@ function _renderIncomeMonth(vm) {
     if (rangeEl) rangeEl.textContent = '';
 
     const liveBadge = isCurrentMonth
-        ? ' <span style="color:#ebc069;font-size:11px;font-weight:normal;">(live)</span>'
+        ? ' <span style="color:var(--ac);font-size:11px;font-weight:normal;">(live)</span>'
         : '';
     const bodyRows = rows.length
         ? rows.join('')
-        : '<tr><td colspan="4" style="text-align:center;color:#6a6a6a;padding:16px;">No data for this month</td></tr>';
+        : '<tr><td colspan="4" style="text-align:center;color:var(--fa);padding:16px;">No data for this month</td></tr>';
 
     content.innerHTML = `
         <div class="income-month-nav">

@@ -6,8 +6,6 @@ const checkInOutBtn = document.getElementById('checkInOutBtn');
 const checkinMessage = document.getElementById('checkinMessage');
 const currentOccupancy = document.getElementById('currentOccupancy');
 const todayVisitors = document.getElementById('todayVisitors');
-const activeMembers = document.getElementById('activeMembers');
-const peakHours = document.getElementById('peakHours');
 const currentMembersList = document.getElementById('currentMembersList');
 const emptyOccupancy = document.getElementById('emptyOccupancy');
 const activityTableBody = document.getElementById('activityTableBody');
@@ -407,7 +405,7 @@ function updateTodayActivity() {
 
         return `
             <tr>
-                <td>${activity.member}<br><small style="color:#6a6a6a">UID: ${activity.uid}</small></td>
+                <td>${activity.member}<br><small style="color:var(--fa)">UID: ${activity.uid}</small></td>
                 <td>${checkInTime}</td>
                 <td>${checkOutTime}</td>
                 <td>${timeSpent}</td>
@@ -440,19 +438,8 @@ function updateStats() {
         }
     });
 
-    const activeMembersCount = allMembers.filter(m => {
-        const membership = m.membership;
-        return membership.status !== 'expired' && (membership.remaining_days === undefined || membership.remaining_days > 0);
-    }).length;
-
-    const now = new Date();
-    const oneHourAgo = new Date(now.getTime() - 3600000);
-    const recentCheckins = todayActivities.filter(a => new Date(a.checkin) > oneHourAgo).length;
-
     currentOccupancy.textContent = checkedInMembers + activeWalkinsCount;
     todayVisitors.textContent = todayVisitorIds.size;
-    activeMembers.textContent = activeMembersCount;
-    peakHours.textContent = recentCheckins > 5 ? 'Now' : '—';
     if (walkinToday) walkinToday.textContent = walkinCount;
 }
 

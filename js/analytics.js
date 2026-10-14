@@ -1,7 +1,13 @@
 import { db } from './database_init.js';
+import { EnhancedForecaster } from './forecast.js';
 import { ref, get, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
 const timeRange = document.getElementById('timeRange');
+const rangeMonth = document.getElementById('rangeMonth');
+const rangeCustom = document.getElementById('rangeCustom');
+const rangeFrom = document.getElementById('rangeFrom');
+const rangeTo = document.getElementById('rangeTo');
+const rangeLabel = document.getElementById('rangeLabel');
 const avgDailyVisitors = document.getElementById('avgDailyVisitors');
 const peakHour = document.getElementById('peakHour');
 const busiestDay = document.getElementById('busiestDay');
@@ -15,154 +21,72 @@ const growthText = document.getElementById('growthText');
 
 let hourlyTrafficChart, dailyTrafficChart, membershipActivityChart, monthlyRevenueChart;
 
-// Dynamic colors based on current theme
+// Chart colours come from the active theme's CSS variables
 function getColors() {
-    const light = document.body.classList.contains('light-mode');
+    const cs = getComputedStyle(document.documentElement);
+    const v = n => cs.getPropertyValue(n).trim();
+    const light = document.documentElement.dataset.mode === 'light';
     return {
-        primary: '#ebc069',
-        secondary: '#1db954',
-        accent: '#4fc3f7',
-        highlight: '#f15e6c',
+        primary: v('--ac'), secondary: v('--ok'), accent: v('--in'), highlight: v('--bad'),
         lightGray: light ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.07)',
-        darkGray: light ? '#555' : '#b3b3b3',
-        tooltipBg: light ? '#fff' : '#282828',
-        tooltipTitle: light ? '#111' : '#fff',
-        tooltipBody: light ? '#555' : '#b3b3b3',
-        tooltipBorder: light ? '#d4d4d8' : '#383838',
-        doughnutBorder: light ? '#f4f4f5' : '#121212',
-        pointBorderColor: light ? '#f4f4f5' : '#121212',
+        darkGray: v('--mu'), tooltipBg: v('--s2'), tooltipTitle: v('--tx'), tooltipBody: v('--mu'),
+        tooltipBorder: v('--bd'), doughnutBorder: v('--bg'), pointBorderColor: v('--bg')
     };
 }
-
-const historicalCache = { hourlyPatterns: {}, dailyTotals: [], lastUpdated: null };
-
-class EnhancedForecaster {
-    constructor() {
-        this.currentPrediction = { prediction: 0, confidence: 0, factors: [] };
-        this.lastUpdate = null;
-    }
-
-    buildPatterns(members, days = 30) {
-        const patterns = {};
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - days);
-
-        for (let d = 0; d < 7; d++) {
-            patterns[d] = {};
-            for (let h = 0; h < 24; h++) {
-                patterns[d][h] = { sum: 0, count: 0 };
-            }
-        }
-
-        members.forEach(member => {
-            (member.attendance_history || []).forEach(visit => {
-                if (!visit.checkin) return;
-                try {
-                    const visitDate = new Date(visit.checkin);
-                    if (visitDate < startDate || visitDate > endDate) return;
-                    const day = visitDate.getDay();
-                    const hour = visitDate.getHours();
-                    patterns[day][hour].sum += 1;
-                    patterns[day][hour].count += 1;
-                } catch (e) {}
-            });
-        });
-
-        for (let d = 0; d < 7; d++) {
-            for (let h = 0; h < 24; h++) {
-                const p = patterns[d][h];
-                patterns[d][h] = p.count > 0 ? p.sum / p.count : 0;
-            }
-        }
-
-        historicalCache.hourlyPatterns = patterns;
-        return patterns;
-    }
-
-    setPredictionFromFirebase(data) {
-        if (data && data.nextHour !== undefined) {
-            let confidence = data.confidence || 0.5;
-            const factors = [];
-            if (data.timestamp) {
-                const age = (new Date() - new Date(data.timestamp)) / (1000 * 60);
-                if (age < 5) { confidence = Math.min(0.95, confidence + 0.1); factors.push('fresh data'); }
-                else if (age < 30) { factors.push('recent data'); }
-            }
-            this.currentPrediction = {
-                prediction: Math.round(data.nextHour),
-                confidence,
-                timestamp: new Date(data.timestamp || new Date()),
-                factors,
-                trend: data.trend || 'stable'
-            };
-            this.lastUpdate = new Date();
-            return true;
-        }
-        return false;
-    }
-
-    calculateEnhancedPrediction(hourlyData, members) {
-        const now = new Date();
-        const currentHour = now.getHours();
-        const nextHour = (currentHour + 1) % 24;
-        const dayOfWeek = now.getDay();
-
-        if (Object.keys(historicalCache.hourlyPatterns).length === 0) {
-            this.buildPatterns(members);
-        }
-
-        const patterns = historicalCache.hourlyPatterns;
-        const factors = [];
-
-        const historicalAvg = patterns[dayOfWeek]?.[nextHour] || 0;
-        if (historicalAvg > 0) factors.push('historical pattern');
-
-        const recentHours = [
-            hourlyData[currentHour] || 0,
-            hourlyData[(currentHour + 23) % 24] || 0,
-            hourlyData[(currentHour + 22) % 24] || 0
-        ];
-        const momentum = recentHours[0] > recentHours[1] ? 'rising' : recentHours[0] < recentHours[1] ? 'falling' : 'stable';
-        const momentumAvg = recentHours.reduce((a, b) => a + b, 0) / 3;
-        if (momentumAvg > 0) factors.push(`${momentum} trend`);
-
-        const yesterdaySameHour = patterns[(dayOfWeek + 6) % 7]?.[nextHour] || 0;
-        if (yesterdaySameHour > 0) factors.push('yesterday comparison');
-
-        const currentBaseline = hourlyData[currentHour] || 0;
-        const prediction = Math.round(historicalAvg * 0.4 + momentumAvg * 0.3 + yesterdaySameHour * 0.2 + currentBaseline * 0.1);
-
-        let confidence = 0.3;
-        if (historicalAvg > 0) confidence += 0.25;
-        if (momentumAvg > 0) confidence += 0.2;
-        if (yesterdaySameHour > 0) confidence += 0.15;
-        if (currentBaseline > 0) confidence += 0.1;
-
-        return {
-            prediction: Math.max(3, Math.min(50, prediction)),
-            confidence: Math.min(0.95, confidence),
-            timestamp: now,
-            factors,
-            trend: momentum
-        };
-    }
-
-    getPrediction(hourlyData = [], members = []) {
-        if (this.lastUpdate) {
-            const minutesSinceUpdate = (new Date() - this.lastUpdate) / (1000 * 60);
-            if (minutesSinceUpdate < 2) return this.currentPrediction;
-        }
-        return this.calculateEnhancedPrediction(hourlyData, members);
-    }
-}
+function rgbaOf(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
 
 const forecaster = new EnhancedForecaster();
+
+const toInputDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// Selected range: a preset (rolling N days), a specific month, or a custom from–to date range.
+// Returns { start, end, days } or null while the admin hasn't filled in the dates yet.
+function getRange() {
+    const v = timeRange.value, now = new Date();
+    let start, end = now;
+    if (v === 'custom') {
+        if (!rangeFrom.value || !rangeTo.value) return null;
+        let a = new Date(rangeFrom.value + 'T00:00:00'), b = new Date(rangeTo.value + 'T23:59:59.999');
+        if (a > b) { a = new Date(rangeTo.value + 'T00:00:00'); b = new Date(rangeFrom.value + 'T23:59:59.999'); }   // dates entered backwards: swap
+        start = a; end = b;
+    } else if (v === 'month') {
+        if (!rangeMonth.value) return null;
+        const [y, m] = rangeMonth.value.split('-').map(Number);
+        start = new Date(y, m - 1, 1);
+        end = new Date(y, m, 0, 23, 59, 59, 999);
+    } else {
+        start = new Date(now);
+        start.setDate(start.getDate() - parseInt(v));
+    }
+    if (end > now) end = now;                       // nothing in the future
+    return { start, end, days: Math.max(1, Math.ceil((end - start) / 86400000)) };
+}
+
+function onRangeModeChange() {
+    const v = timeRange.value;
+    rangeMonth.hidden = v !== 'month';
+    rangeCustom.hidden = v !== 'custom';
+    if (v === 'month' && !rangeMonth.value) rangeMonth.value = toInputDate(new Date()).slice(0, 7);
+    if (v === 'custom' && !rangeFrom.value) {
+        const f = new Date(); f.setDate(f.getDate() - 30);
+        rangeFrom.value = toInputDate(f); rangeTo.value = toInputDate(new Date());
+    }
+    loadAnalyticsData();
+}
+
+function showRangeLabel(r) {
+    if (timeRange.value !== 'month' && timeRange.value !== 'custom') { rangeLabel.textContent = ''; return; }
+    const f = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    rangeLabel.textContent = `${f(r.start)} \u2013 ${f(r.end)} \u00b7 ${r.days} day${r.days === 1 ? '' : 's'}`;
+}
 
 function init() {
     setupFirebaseListeners();
     loadAnalyticsData();
-    timeRange.addEventListener('change', loadAnalyticsData);
+    timeRange.addEventListener('change', onRangeModeChange);
+    [rangeMonth, rangeFrom, rangeTo].forEach(el => el.addEventListener('change', loadAnalyticsData));
+    rangeFrom.max = rangeTo.max = toInputDate(new Date());
+    rangeMonth.max = toInputDate(new Date()).slice(0, 7);
     setInterval(updateDisplay, 60000);
 
     // Re-render charts when theme toggles
@@ -171,18 +95,10 @@ function init() {
             loadAnalyticsData();
         }
     });
-    themeObserver.observe(document.body, { attributeFilter: ['class'] });
+    themeObserver.observe(document.documentElement, { attributeFilter: ['data-theme'] });
 }
 
 function setupFirebaseListeners() {
-    onValue(ref(db, 'Trend24h'), snap => {
-        const data = snap.val();
-        if (data && forecaster.setPredictionFromFirebase(data)) {
-            updatePredictionDisplay();
-            if (hourlyTrafficChart) setTimeout(() => updateHourlyChartPrediction(), 100);
-        }
-    });
-
     onValue(ref(db, 'WeeklyGrowthRate'), s => {
         const data = s.val();
         if (data && data.pct !== undefined) updateGrowthDisplay(data);
@@ -195,51 +111,56 @@ function updateGrowthDisplay(data) {
     const sign = pct > 0 ? '+' : '';
     growthText.textContent = `${sign}${pct}%`;
 
-    if (pct >= 15) { growthText.style.color = '#1db954'; }
-    else if (pct > 0) { growthText.style.color = '#5cb85c'; }
-    else if (pct === 0) { growthText.style.color = '#b3b3b3'; }
-    else if (pct > -10) { growthText.style.color = '#ebc069'; }
-    else { growthText.style.color = '#f15e6c'; }
+    if (pct >= 15) { growthText.style.color = getColors().secondary; }
+    else if (pct > 0) { growthText.style.color = getColors().secondary; }
+    else if (pct === 0) { growthText.style.color = getColors().darkGray; }
+    else if (pct > -10) { growthText.style.color = getColors().primary; }
+    else { growthText.style.color = getColors().highlight; }
 
     let trendEl = document.getElementById('growthTrend');
     if (!trendEl) {
         trendEl = document.createElement('div');
         trendEl.id = 'growthTrend';
-        trendEl.style.cssText = 'font-size: 18px; margin-top: 4px; color: #b3b3b3;';
+        trendEl.style.cssText = 'font-size: 18px; margin-top: 4px; color: var(--mu);';
         growthText.parentNode.appendChild(trendEl);
     }
     const arrows = { up: '↑', down: '↓', stable: '→' };
     const label = pct >= 15 ? 'Excellent' : pct >= 5 ? 'Good' : pct >= -5 ? 'Stable' : 'Needs Attention';
-    trendEl.innerHTML = `${arrows[trend] || '→'} <small style="font-size: 11px; color: #6a6a6a;">${label}</small>`;
+    trendEl.innerHTML = `${arrows[trend] || '→'} <small style="font-size: 11px; color: var(--fa);">${label}</small>`;
+}
+
+function crowdColor(level) {
+    const c = getColors();
+    return level === 'Very Busy' ? c.highlight : level === 'Busy' ? c.primary : c.secondary;
 }
 
 function updatePredictionDisplay() {
-    const prediction = forecaster.getPrediction();
-    aiNextHour.textContent = prediction.prediction;
+    const p = forecaster.getPrediction();
+    if (!p.ready) { aiNextHour.textContent = '—'; aiConfidence.textContent = p.factors[0]; return; }
 
-    const predColor = prediction.prediction >= 30 ? '#f15e6c' : prediction.prediction >= 15 ? '#ebc069' : '#1db954';
+    const level = forecaster.level(p.raw), predColor = crowdColor(level);
+    aiNextHour.textContent = p.prediction;
     aiNextHour.style.color = predColor;
 
-    const confidencePct = Math.round(prediction.confidence * 100);
-    const confidenceColor = confidencePct > 70 ? '#1db954' : confidencePct > 40 ? '#ebc069' : '#f15e6c';
+    const confidencePct = Math.round(p.confidence * 100);
+    const confidenceColor = confidencePct > 70 ? getColors().secondary : confidencePct > 40 ? getColors().primary : getColors().highlight;
 
     let confidenceBar = document.getElementById('confidenceBar');
     if (!confidenceBar) {
         confidenceBar = document.createElement('div');
         confidenceBar.id = 'confidenceBar';
-        confidenceBar.style.cssText = 'width:100%;height:3px;background:#282828;border-radius:2px;margin-top:8px;overflow:hidden;';
+        confidenceBar.style.cssText = 'width:100%;height:3px;background:var(--s3);border-radius:2px;margin-top:8px;overflow:hidden;';
         const fill = document.createElement('div');
         fill.id = 'confidenceFill';
         fill.style.cssText = 'height:100%;width:0%;transition:width 0.5s ease,background-color 0.3s ease;border-radius:2px;';
         confidenceBar.appendChild(fill);
         aiConfidence.parentNode.insertBefore(confidenceBar, aiConfidence.nextSibling);
     }
-
     const fill = document.getElementById('confidenceFill');
-    if (fill) { fill.style.width = `${confidencePct}%`; fill.style.backgroundColor = confidenceColor; }
+    fill.style.width = `${confidencePct}%`;
+    fill.style.backgroundColor = confidenceColor;
 
-    const factorText = prediction.factors?.length > 0 ? ` • ${prediction.factors.slice(0, 2).join(', ')}` : '';
-    aiConfidence.textContent = `${confidencePct}% confidence${factorText}`;
+    aiConfidence.textContent = `${confidencePct}% confidence \u2022 likely ${p.range[0]}\u2013${p.range[1]} check-ins \u2022 ${p.factors.join(', ')}`;
     aiConfidence.style.color = confidenceColor;
 
     let crowdLabel = document.getElementById('crowdLabel');
@@ -249,12 +170,11 @@ function updatePredictionDisplay() {
         crowdLabel.style.cssText = 'font-size: 11px; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px;';
         aiNextHour.parentNode.appendChild(crowdLabel);
     }
-    const crowdLevel = prediction.prediction >= 30 ? 'Very Busy' : prediction.prediction >= 20 ? 'Busy' : prediction.prediction >= 10 ? 'Moderate' : 'Quiet';
-    crowdLabel.textContent = crowdLevel;
+    crowdLabel.textContent = level;
     crowdLabel.style.color = predColor;
 }
 
-function updateDisplay() { updatePredictionDisplay(); }
+function updateDisplay() { updatePredictionDisplay(); updateHourlyChartPrediction(); }
 
 function calculateWeeklyGrowth(members) {
     const now = new Date();
@@ -286,29 +206,32 @@ function calculateWeeklyGrowth(members) {
 }
 
 async function loadAnalyticsData() {
-    const days = parseInt(timeRange.value);
+    const range = getRange();
+    if (!range) return;
+    showRangeLabel(range);
     try {
         const snapshot = await get(ref(db, 'Customers'));
         if (!snapshot.exists()) { showEmptyState(); return; }
 
         const members = [];
-        const hourlyCount = Array(24).fill(0);
+        const visitTimes = [];   // every check-in (members + walk-ins), whole history, for the forecaster
 
         snapshot.forEach(child => {
             const data = child.val();
-            if (child.key.startsWith('_') || child.key.startsWith('WALKIN_')) return;
+            if (child.key.startsWith('_')) return;
+            if (child.key.startsWith('WALKIN_')) {
+                const t = Date.parse(data.gym_data?.last_checkin || data.timestamp);
+                if (!isNaN(t)) visitTimes.push(t);
+                return;
+            }
             const member = normalizeMemberData(child.key, data);
             members.push(member);
-
-            member.attendance_history.forEach(visit => {
-                if (visit.checkin) {
-                    try { hourlyCount[new Date(visit.checkin).getHours()]++; } catch (e) {}
-                }
-            });
+            member.attendance_history.forEach(v => { const t = Date.parse(v.checkin); if (!isNaN(t)) visitTimes.push(t); });
         });
 
-        forecaster.buildPatterns(members, 90);
-        processAnalytics(members, days, hourlyCount);
+        forecaster.fit(visitTimes);
+        processAnalytics(members, range);
+        updatePredictionDisplay();
         calculateWeeklyGrowth(members);
         const revData = await buildMonthlyRevenueData();
         updateMonthlyRevenueChart(revData);
@@ -404,8 +327,8 @@ function updateMonthlyRevenueChart({ labels, memberRevenue, walkinRevenue }) {
                 {
                     label: 'Member Fees',
                     data: memberRevenue.map(v => Math.round(v)),
-                    backgroundColor: 'rgba(235,192,105,0.7)',
-                    borderColor: '#ebc069',
+                    backgroundColor: rgbaOf(getColors().primary,0.7),
+                    borderColor: getColors().primary,
                     borderWidth: 1,
                     borderRadius: 6,
                     stack: 'rev'
@@ -413,8 +336,8 @@ function updateMonthlyRevenueChart({ labels, memberRevenue, walkinRevenue }) {
                 {
                     label: 'Walk-in Fees',
                     data: walkinRevenue.map(v => Math.round(v)),
-                    backgroundColor: 'rgba(79,195,247,0.7)',
-                    borderColor: '#4fc3f7',
+                    backgroundColor: rgbaOf(getColors().accent,0.7),
+                    borderColor: getColors().accent,
                     borderWidth: 1,
                     borderRadius: 6,
                     stack: 'rev'
@@ -460,16 +383,15 @@ function updateMonthlyRevenueChart({ labels, memberRevenue, walkinRevenue }) {
     });
 }
 
-function processAnalytics(members, days, hourlyCount) {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+function processAnalytics(members, { start: startDate, end: endDate, days }) {
 
     const allVisits = [];
     const memberStats = {};
     const dailyCount = Array(7).fill(0);
     const dateCount = {};
     const stayTimes = [];
+    const hourlyCount = Array(24).fill(0);   // check-ins per hour of day, inside the selected range
+    let firstVisit = Infinity;
 
     members.forEach(member => {
         const memberVisits = member.attendance_history.filter(visit => {
@@ -486,7 +408,9 @@ function processAnalytics(members, days, hourlyCount) {
             if (!visit.checkin) return;
             try {
                 const visitDate = new Date(visit.checkin);
+                firstVisit = Math.min(firstVisit, visitDate.getTime());
                 if (visitDate < startDate || visitDate > endDate) return;
+                hourlyCount[visitDate.getHours()]++;
                 const day = visitDate.getDay();
                 const dateStr = visitDate.toISOString().split('T')[0];
                 dailyCount[day]++;
@@ -497,8 +421,11 @@ function processAnalytics(members, days, hourlyCount) {
         });
     });
 
+    // days of data actually inside the range (a gym with 10 days of history shouldn't divide by 30)
+    const spanDays = Math.max(1, Math.ceil((endDate - Math.max(startDate.getTime(), isFinite(firstVisit) ? firstVisit : startDate.getTime())) / 86400000));
+
     updateSummaryCards(allVisits, dateCount, stayTimes, days, hourlyCount, dailyCount);
-    updateCharts(hourlyCount, dailyCount, dateCount, members, allVisits);
+    updateCharts(hourlyCount, dailyCount, dateCount, members, allVisits, spanDays);
     updateDetailedStats(memberStats, hourlyCount, members);
 }
 
@@ -519,8 +446,8 @@ function updateSummaryCards(visits, dateCount, stayTimes, days, hourlyCount, dai
     avgStayTime.textContent = `${avgStay}m`;
 }
 
-function updateCharts(hourlyCount, dailyCount, dateCount, members, visits) {
-    updateHourlyTrafficChart(hourlyCount, members);
+function updateCharts(hourlyCount, dailyCount, dateCount, members, visits, spanDays) {
+    updateHourlyTrafficChart(hourlyCount, spanDays);
     updateDailyTrafficChart(dateCount);
     updateMembershipActivityChart(members, visits);
     updateChartInsights(hourlyCount, dailyCount, dateCount, members, visits);
@@ -580,17 +507,18 @@ function updateChartInsights(hourlyCount, dailyCount, dateCount, members, visits
 
 function updateHourlyChartPrediction() {
     if (!hourlyTrafficChart) return;
-    const prediction = forecaster.getPrediction();
-    const nextHourIndex = (new Date().getHours() + 1) % 24;
-    if (hourlyTrafficChart.data.datasets[1]) {
-        const predictionData = Array(24).fill(null);
-        predictionData[nextHourIndex] = prediction.prediction;
-        hourlyTrafficChart.data.datasets[1].data = predictionData;
-        hourlyTrafficChart.update('none');
-    }
+    const p = forecaster.getPrediction();
+    const ds = hourlyTrafficChart.data.datasets[1];
+    if (!ds || !p.ready) return;
+    const data = Array(24).fill(null);
+    data[(new Date().getHours() + 1) % 24] = p.prediction;
+    ds.data = data;
+    ds.label = `Forecast next hour: ${p.prediction}`;
+    ds.borderColor = ds.pointBackgroundColor = crowdColor(forecaster.level(p.raw));
+    hourlyTrafficChart.update('none');
 }
 
-function updateHourlyTrafficChart(hourlyCount, members = []) {
+function updateHourlyTrafficChart(hourlyCount, spanDays = 1) {
     const colors = getColors();
     const ctx = document.getElementById('hourlyTrafficChart').getContext('2d');
     if (hourlyTrafficChart) hourlyTrafficChart.destroy();
@@ -598,12 +526,11 @@ function updateHourlyTrafficChart(hourlyCount, members = []) {
     const labels = Array.from({ length: 12 }, (_, i) => i === 0 ? '12AM' : `${i}AM`)
         .concat(Array.from({ length: 12 }, (_, i) => i === 0 ? '12PM' : `${i}PM`));
 
-    const prediction = forecaster.getPrediction(hourlyCount, members);
+    const prediction = forecaster.getPrediction();
     const nextHourIndex = (new Date().getHours() + 1) % 24;
     const predictionData = Array(24).fill(null);
-    predictionData[nextHourIndex] = prediction.prediction;
-
-    const predColor = prediction.prediction >= 30 ? '#f15e6c' : prediction.prediction >= 15 ? '#ebc069' : '#1db954';
+    if (prediction.ready) predictionData[nextHourIndex] = prediction.prediction;
+    const predColor = prediction.ready ? crowdColor(forecaster.level(prediction.raw)) : getColors().primary;
 
     hourlyTrafficChart = new Chart(ctx, {
         type: 'bar',
@@ -611,16 +538,16 @@ function updateHourlyTrafficChart(hourlyCount, members = []) {
             labels,
             datasets: [
                 {
-                    label: 'Historical Visits',
-                    data: hourlyCount,
-                    backgroundColor: 'rgba(235,192,105,0.5)',
-                    borderColor: '#ebc069',
+                    label: 'Avg check-ins per day',
+                    data: hourlyCount.map(c => +(c / spanDays).toFixed(2)),
+                    backgroundColor: rgbaOf(getColors().primary,0.5),
+                    borderColor: getColors().primary,
                     borderWidth: 1,
                     borderRadius: 4,
                     barPercentage: 0.8
                 },
                 {
-                    label: `AI Forecast: ${prediction.prediction}`,
+                    label: prediction.ready ? `Forecast next hour: ${prediction.prediction}` : 'Forecast (not enough data)',
                     data: predictionData,
                     type: 'line',
                     borderColor: predColor,
@@ -649,7 +576,7 @@ function updateHourlyTrafficChart(hourlyCount, members = []) {
                     borderWidth: 1,
                     cornerRadius: 8,
                     callbacks: {
-                        label: ctx => `${ctx.parsed.y !== null ? ctx.parsed.y : 0} visitors`,
+                        label: ctx => ctx.datasetIndex === 1 ? `${ctx.parsed.y} expected (likely ${prediction.range[0]}\u2013${prediction.range[1]})` : `${ctx.parsed.y} check-ins/day`,
                         afterLabel: ctx => ctx.datasetIndex === 1 ? `Confidence: ${Math.round(prediction.confidence * 100)}%` : undefined
                     }
                 }
@@ -659,7 +586,7 @@ function updateHourlyTrafficChart(hourlyCount, members = []) {
                     beginAtZero: true,
                     grid: { color: colors.lightGray, drawBorder: false },
                     ticks: { color: colors.darkGray, font: { size: 11 }, callback: v => Number.isInteger(v) ? v : '' },
-                    title: { display: true, text: 'Visitors', color: colors.darkGray }
+                    title: { display: true, text: 'Check-ins per hour', color: colors.darkGray }
                 },
                 x: {
                     grid: { display: false },
@@ -682,8 +609,8 @@ function updateDailyTrafficChart(dateCount) {
     const formattedDates = dates.map(d => { const dt = new Date(d); return `${dt.getMonth() + 1}/${dt.getDate()}`; });
 
     const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-    gradient.addColorStop(0, 'rgba(235,192,105,0.3)');
-    gradient.addColorStop(1, 'rgba(235,192,105,0.02)');
+    gradient.addColorStop(0, rgbaOf(getColors().primary,0.3));
+    gradient.addColorStop(1, rgbaOf(getColors().primary,0.02));
 
     dailyTrafficChart = new Chart(ctx, {
         type: 'line',
@@ -693,11 +620,11 @@ function updateDailyTrafficChart(dateCount) {
                 label: 'Daily Traffic',
                 data: values,
                 backgroundColor: gradient,
-                borderColor: '#ebc069',
+                borderColor: getColors().primary,
                 borderWidth: 2,
                 tension: 0.3,
                 fill: true,
-                pointBackgroundColor: '#ebc069',
+                pointBackgroundColor: getColors().primary,
                 pointBorderColor: colors.pointBorderColor,
                 pointBorderWidth: 2,
                 pointRadius: 4,
@@ -746,7 +673,7 @@ function updateMembershipActivityChart(members, visits) {
             labels: ['Active & Visiting', 'Active (Not Visiting)', 'Expired'],
             datasets: [{
                 data: [activeVisited, activeNotVisited, expiredMembers],
-                backgroundColor: ['#1db954', '#ebc069', '#f15e6c'],
+                backgroundColor: [getColors().secondary, getColors().primary, getColors().highlight],
                 borderColor: colors.doughnutBorder,
                 borderWidth: 3,
                 hoverOffset: 12
@@ -783,21 +710,21 @@ function updateDetailedStats(memberStats, hourlyCount, members) {
 
     topMembersList.innerHTML = topMembers.length > 0 ?
         topMembers.map(m => `<div class="stat-item"><span>${m.name}</span><span class="value">${m.visits} visits</span></div>`).join('') :
-        '<div class="stat-item" style="color:#6a6a6a">No visits recorded</div>';
+        '<div class="stat-item" style="color:var(--fa)">No visits recorded</div>';
 
     const fmtHour = h => h === 0 ? '12 AM' : h === 12 ? '12 PM' : h < 12 ? `${h} AM` : `${h - 12} PM`;
     const peakHoursSorted = hourlyCount.map((count, hour) => ({ hour, count })).filter(h => h.count > 0).sort((a, b) => b.count - a.count).slice(0, 5);
 
     peakHoursList.innerHTML = peakHoursSorted.length > 0 ?
         peakHoursSorted.map(({ hour, count }) => `<div class="stat-item"><span>${fmtHour(hour)}</span><span class="value">${count} check-ins</span></div>`).join('') :
-        '<div class="stat-item" style="color:#6a6a6a">No check-in data</div>';
+        '<div class="stat-item" style="color:var(--fa)">No check-in data</div>';
 
     const activeCount = members.filter(m => m.membership.status !== 'expired' && (m.membership.remaining_days === undefined || m.membership.remaining_days > 0)).length;
     const expiredCount = members.filter(m => m.membership.status === 'expired' || (m.membership.remaining_days !== undefined && m.membership.remaining_days <= 0)).length;
 
     membershipStats.innerHTML = `
-        <div class="stat-item"><span>Active Members</span><span class="value" style="color:#1db954">${activeCount}</span></div>
-        <div class="stat-item"><span>Expired Members</span><span class="value" style="color:#f15e6c">${expiredCount}</span></div>
+        <div class="stat-item"><span>Active Members</span><span class="value" style="color:var(--ok)">${activeCount}</span></div>
+        <div class="stat-item"><span>Expired Members</span><span class="value" style="color:var(--bad)">${expiredCount}</span></div>
         <div class="stat-item"><span>Total Members</span><span class="value">${members.length}</span></div>`;
 }
 
@@ -868,9 +795,9 @@ function showEmptyState() {
     const els = ['growthTrend', 'confidenceBar', 'crowdLabel'];
     els.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
 
-    topMembersList.innerHTML = '<div class="stat-item" style="color:#6a6a6a">No data available</div>';
-    peakHoursList.innerHTML = '<div class="stat-item" style="color:#6a6a6a">No data available</div>';
-    membershipStats.innerHTML = '<div class="stat-item" style="color:#6a6a6a">No data available</div>';
+    topMembersList.innerHTML = '<div class="stat-item" style="color:var(--fa)">No data available</div>';
+    peakHoursList.innerHTML = '<div class="stat-item" style="color:var(--fa)">No data available</div>';
+    membershipStats.innerHTML = '<div class="stat-item" style="color:var(--fa)">No data available</div>';
 
     updateHourlyTrafficChart(Array(24).fill(0), []);
     updateDailyTrafficChart({});

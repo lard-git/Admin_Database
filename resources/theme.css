@@ -1,0 +1,191 @@
+/* theme.css — load AFTER each page's own stylesheet. Variables + Celestial-style components. */
+
+/* ── Themes (name = data-theme) ── */
+:root[data-theme] {
+  --font: Inter, "Segoe UI", system-ui, sans-serif;
+  --nav-h: 56px; --r: 12px; --r-sm: 8px;
+  --ok-s: color-mix(in srgb, var(--ok) 15%, transparent);
+  --wn-s: color-mix(in srgb, var(--wn) 15%, transparent);
+  --bad-s: color-mix(in srgb, var(--bad) 15%, transparent);
+  --in-s: color-mix(in srgb, var(--in) 15%, transparent);
+  --ac-s: color-mix(in srgb, var(--ac) 14%, transparent);
+  --glow: 0 0 0 1px var(--ac), 0 0 22px color-mix(in srgb, var(--ac) 32%, transparent);
+  color-scheme: dark;
+}
+:root[data-theme="dark"]      { --bg:#0d0d14; --s1:#14141d; --s2:#1c1c28; --s3:#262636; --bd:#2a2a3a; --tx:#f1f1f7; --mu:#a2a2b8; --fa:#6c6c82; --ac:#b78cff; --acfg:#14081f; --ok:#3ddc84; --wn:#f5c26b; --bad:#ff6b81; --in:#5cc8ff; }
+:root[data-theme="light"]     { --bg:#f4f3f8; --s1:#ffffff; --s2:#f0eef7; --s3:#e6e3f1; --bd:#dedbea; --tx:#17151f; --mu:#5b5870; --fa:#8b88a0; --ac:#7a2fe0; --acfg:#ffffff; --ok:#178a47; --wn:#a8730a; --bad:#c62f43; --in:#0b78b3; color-scheme: light; }
+:root[data-theme="amoled"]    { --bg:#000000; --s1:#0a0a0a; --s2:#141414; --s3:#1e1e1e; --bd:#242424; --tx:#ffffff; --mu:#aaaaaa; --fa:#707070; --ac:#ffffff; --acfg:#000000; --ok:#3ddc84; --wn:#f5c26b; --bad:#ff6b81; --in:#5cc8ff; }
+:root[data-theme="cyberpunk"] { --bg:#05090c; --s1:#0a1217; --s2:#101c23; --s3:#17272f; --bd:#17323a; --tx:#e6fff6; --mu:#8fb8aa; --fa:#5d7f75; --ac:#1affa8; --acfg:#00130b; --ok:#1affa8; --wn:#ffe14d; --bad:#ff4d7a; --in:#4dd2ff; }
+:root[data-theme="ink"]       { --bg:#f6f1e4; --s1:#fbf8ef; --s2:#efe8d6; --s3:#e4dbc5; --bd:#d9cfb4; --tx:#231c14; --mu:#6b5f4c; --fa:#968a74; --ac:#c4281e; --acfg:#ffffff; --ok:#2e7d32; --wn:#a8730a; --bad:#c4281e; --in:#1e6b99; color-scheme: light; }
+:root[data-theme="arcade"]    { --bg:#0b0b1a; --s1:#12122a; --s2:#1a1a3a; --s3:#24244c; --bd:#2e2e5a; --tx:#ffffff; --mu:#b0b0d8; --fa:#7878a8; --ac:#ff1f7a; --acfg:#ffffff; --ok:#2dffb0; --wn:#ffd23f; --bad:#ff5470; --in:#4dc9ff; }
+:root[data-theme="gold"]      { --bg:#121212; --s1:#181818; --s2:#282828; --s3:#333333; --bd:#2f2f2f; --tx:#ffffff; --mu:#b3b3b3; --fa:#6a6a6a; --ac:#ebc069; --acfg:#121212; --ok:#1db954; --wn:#ebc069; --bad:#f15e6c; --in:#4fc3f7; }
+
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
+
+/* ── Everything below is scoped so it outranks the old per-page CSS ── */
+:root[data-theme] {
+  body { font-family: var(--font); background: var(--bg); color: var(--tx); padding-top: var(--nav-h); transition: background .25s, color .25s; }
+
+  .content { margin: 0 auto; max-width: 1500px; padding: 28px 32px 48px; background: transparent; min-height: calc(100vh - var(--nav-h)); }
+  *:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; }
+
+  /* ── Top nav ── */
+  .topnav { position: fixed; inset: 0 0 auto 0; height: var(--nav-h); display: flex; align-items: center; gap: 6px; padding: 0 16px; background: color-mix(in srgb, var(--s1) 88%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--bd); z-index: 100; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; margin-right: 14px; color: var(--tx); text-decoration: none; }
+  .brand img { width: 30px; height: 30px; border-radius: 8px; object-fit: cover; }
+  .navlinks { display: flex; gap: 4px; }
+  .navbtn { display: flex; align-items: center; height: 38px; padding: 0 11px; border-radius: 10px; color: var(--mu); text-decoration: none; white-space: nowrap; position: relative; transition: background .2s, color .2s; }
+  .navbtn svg, .iconbtn svg, .signin svg { width: 19px; height: 19px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .navbtn span { max-width: 0; opacity: 0; overflow: hidden; margin-left: 0; font-size: 13px; font-weight: 600; transition: max-width .28s ease, opacity .2s, margin .28s; }
+  .navbtn:hover, .navbtn:focus-visible, .navbtn.active { background: var(--s2); color: var(--tx); }
+  .navbtn:hover span, .navbtn:focus-visible span, .navbtn.active span { max-width: 120px; opacity: 1; margin-left: 8px; }
+  .navbtn.active { color: var(--ac); }
+  .navbtn.active::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 2px; height: 2px; border-radius: 2px; background: var(--ac); box-shadow: 0 0 10px var(--ac); }
+  .navgap { flex: 1; }
+  .iconbtn, .signin { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 11px; border-radius: var(--r-sm); border: 1px solid transparent; background: transparent; color: var(--mu); cursor: pointer; font: 600 13px var(--font); transition: all .15s; }
+  .iconbtn:hover, .signin:hover { background: var(--s2); color: var(--tx); }
+  .signin { border-color: var(--bd); }
+  .signin.on { border-color: color-mix(in srgb, var(--ok) 40%, transparent); color: var(--ok); }
+  .themepop { position: fixed; top: calc(var(--nav-h) + 8px); right: 16px; width: min(440px, 92vw); display: none; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px; background: var(--s1); border: 1px solid var(--bd); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,.4); z-index: 101; }
+  .themepop.open { display: grid; }
+  .tcard { border: 1px solid var(--bd); border-radius: 10px; overflow: hidden; cursor: pointer; background: var(--s1); color: var(--tx); font: 600 12px var(--font); padding: 0; text-align: left; transition: border-color .15s, box-shadow .15s; }
+  .tcard:hover { border-color: var(--mu); }
+  .tcard.sel { border-color: var(--ac); box-shadow: var(--glow); }
+  .tprev { height: 46px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 7px; }
+  .tprev i { border-radius: 4px; }
+  .tcard b { display: block; padding: 7px 9px; font-weight: 600; }
+  @media (hover: none) { .navbtn:not(.active) span { display: none; } }
+  @media (max-width: 700px) { .brand b { display: none; } .signin b { display: none; } .content { padding: 20px 16px 40px; } }
+
+  /* ── Headings: section titles get the Celestial rule-line treatment ── */
+  .page-header { border-bottom: 1px solid var(--bd); }
+  .page-header h1, .content > h1 { color: var(--tx); font-size: 24px; font-weight: 700; border-bottom-color: var(--bd); }
+  .checkin-section h2, .occupancy-section h2, .activity-section h2, .stats-section h2, .chart-card h3, .payment-section h3, .qr-section h3, .modal-content h3 {
+    display: flex; align-items: center; gap: 12px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ac); border: 0; padding-bottom: 0; margin-bottom: 16px;
+  }
+  .checkin-section h2::after, .occupancy-section h2::after, .activity-section h2::after, .stats-section h2::after, .chart-card h3::after, .payment-section h3::after, .qr-section h3::after { content: ""; flex: 1; height: 1px; background: var(--bd); }
+  .chart-card h3 small, .modal-content h3 small { text-transform: none; letter-spacing: 0; color: var(--fa) !important; }
+
+  /* ── Surfaces ── */
+  .summary-card, .stat-card, .chart-card, .stats-section, .checkin-section, .occupancy-section, .activity-section, .form-section, .qr-section, .table-container, .income-total-card {
+    background: var(--s1); border: 1px solid var(--bd); border-radius: var(--r); color: var(--tx); box-shadow: none;
+  }
+  .summary-card:hover, .stat-card:hover, .member-card:hover { border-color: color-mix(in srgb, var(--ac) 55%, var(--bd)); background: var(--s2); transform: translateY(-2px); }
+  .summary-card h3, .stat-card h3, .itc-label, .stat-box h4 { color: var(--mu); }
+  .summary-card span, .stat-card span { color: var(--tx); }
+  .summary-card.active span, .summary-card.ai span { color: var(--ok); }
+  .summary-card.ai span { color: var(--ac); }
+  .summary-card.expiring span { color: var(--wn); }
+  .summary-card.expired span { color: var(--bad); }
+  .summary-card.revenue span { color: var(--in); }
+  .summary-card small, .daily-history, .day-row, .stats { color: var(--mu); }
+  .stat-card span { color: var(--ac); }
+  .stat-box, .payment-summary, .current-membership-info { background: var(--s2); border: 1px solid var(--bd); border-radius: 10px; }
+  .stat-item { background: var(--s3); border: 1px solid var(--bd); color: var(--mu); }
+  .stat-item:hover { background: var(--s2); }
+  .stat-item .value { color: var(--ac); }
+  .chart-insight { background: var(--ac-s); border-left-color: var(--ac); color: var(--mu); }
+
+  .logo-section { border-bottom-color: var(--bd); }
+  .logo-text { color: var(--ac); font-family: "Personafont", var(--font); }
+  .badge { background: var(--ac); color: var(--acfg); }
+
+  /* ── Forms ── */
+  .form-group label, .half-width label, .label, .split2 label, .edit-form .form-group label { color: var(--mu); }
+  input:not([type=range]):not([type=checkbox]), select, textarea, .membership-type-select, #memberUidInput, #searchInput, .date-range select, .search-box {
+    background: var(--s2); border: 1px solid var(--bd); color: var(--tx); border-radius: var(--r-sm);
+  }
+  input::placeholder, textarea::placeholder { color: var(--fa); }
+  input:focus, select:focus, textarea:focus, .search-box:focus-within { border-color: var(--ac); box-shadow: 0 0 0 3px var(--ac-s); outline: none; }
+  #searchInput { border: 0; box-shadow: none; background: transparent; }
+  #searchBtn { color: var(--mu); }
+  #searchBtn:hover { color: var(--ac); }
+  input[readonly] { background: var(--s1); color: var(--fa); }
+  option { background: var(--s2); color: var(--tx); }
+  .slider { background: var(--s3); }
+  .slider::-webkit-slider-thumb { background: var(--ac); box-shadow: 0 0 10px var(--ac-s); }
+  .slider-labels { color: var(--fa); }
+  .payment-summary p, .edit-form .payment-summary p, .qr-note { color: var(--mu); }
+  .total-amount { color: var(--ac) !important; border-top-color: var(--bd); }
+
+  /* ── Buttons ── */
+  .btn, #authBox button, #checkInOutBtn { border-radius: var(--r-sm); font-family: var(--font); }
+  .btn-primary, #authBox button, #AddBtn { background: var(--ac); color: var(--acfg); border: 1px solid var(--ac); }
+  .btn-primary:hover, #authBox button:hover { background: var(--ac); filter: brightness(1.12); box-shadow: var(--glow); }
+  .btn-secondary { background: transparent; color: var(--tx); border: 1px solid var(--bd); }
+  .btn-secondary:hover { background: var(--s2); }
+  .btn-danger, .btn-delete { background: var(--bad-s); color: var(--bad); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent); }
+  .btn-edit, .btn-income { background: var(--ac-s); color: var(--ac); border: 1px solid color-mix(in srgb, var(--ac) 35%, transparent); }
+
+  #checkInOutBtn { background: var(--ok); color: var(--bg); }
+  #checkInOutBtn.day-pass-out { background: var(--bad); }
+  #checkInOutBtn.day-pass-in { background: var(--in); }
+
+  /* ── Tables ── */
+  table { color: var(--tx); }
+  th { background: var(--s2); color: var(--mu); border-bottom: 1px solid var(--bd); }
+  td { color: var(--tx); border-bottom: 1px solid var(--bd); }
+  tbody tr:hover { background: color-mix(in srgb, var(--ac) 6%, transparent); }
+  .imn-btn { background: var(--s2); color: var(--tx); border: 1px solid var(--bd); }
+  .inc-today-row td { color: var(--ac); }
+  .itc-value { color: var(--ok); }
+  .income-total-card.memberships .itc-value { color: var(--ac); }
+  .income-total-card.walkins .itc-value { color: var(--in); }
+  .empty-state, .empty-state p { color: var(--fa); }
+  .empty-state a { color: var(--ac); }
+
+  /* ── Status colours ── */
+  .status-active, .membership-active { background: var(--ok-s); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+  .status-warning, .membership-warning { background: var(--wn-s); color: var(--wn); border-color: color-mix(in srgb, var(--wn) 30%, transparent); }
+  .status-expired, .membership-expired { background: var(--bad-s); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 30%, transparent); }
+  .days-safe { color: var(--ok); } .days-warning { color: var(--wn); } .days-danger { color: var(--bad); }
+  .message.success { background: var(--ok-s); color: var(--ok); border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+  .message.error   { background: var(--bad-s); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 30%, transparent); }
+  .message.warning { background: var(--wn-s); color: var(--wn); border-color: color-mix(in srgb, var(--wn) 30%, transparent); }
+  .message.info    { background: var(--in-s); color: var(--in); border-color: color-mix(in srgb, var(--in) 30%, transparent); }
+
+  /* ── Member cards (occupancy): accent bar like Celestial's selected cards ── */
+  .member-card { background: var(--s2); border-left: 3px solid var(--ac); }
+  .member-card.expiring { border-left-color: var(--wn); } .member-card.expired { border-left-color: var(--bad); }
+  .walkin-card { border-left-color: var(--in); }
+  .member-name { color: var(--tx); } .member-uid, .checkin-time { color: var(--fa); }
+
+  /* ── Modals, menus, sign-in ── */
+  .modal { background: rgba(0,0,0,.62); backdrop-filter: blur(6px); }
+  .modal-content, .context-menu { background: var(--s1); border: 1px solid var(--bd); color: var(--tx); border-radius: 14px; box-shadow: 0 24px 64px rgba(0,0,0,.45); }
+  .close, .close-edit { color: var(--mu); } .close:hover, .close-edit:hover { color: var(--tx); }
+  .edit-form .payment-section { background: transparent; }
+  .ctx-header { color: var(--fa); border-bottom-color: var(--bd); } .ctx-item { color: var(--tx); } .ctx-item:hover { background: var(--s2); }
+  .ctx-item.ctx-danger { color: var(--bad); }
+  #authOverlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 9999; background: rgba(0,0,0,.7); backdrop-filter: blur(10px); }
+  #authBox { background: var(--s1); border: 1px solid var(--bd); border-radius: 16px; padding: 36px 40px; min-width: 320px; text-align: center; box-shadow: var(--glow); }
+  #authBox h3 { color: var(--tx); font-size: 20px; margin-bottom: 20px; }
+  #authBox input { width: 100%; padding: 12px 14px; margin-bottom: 12px; font-family: inherit; }
+  #authBox button { width: 100%; padding: 12px; cursor: pointer; font-weight: 700; }
+  #authBox .error { color: var(--bad); font-size: 13px; min-height: 18px; margin-top: 10px; }
+  #authBox.shake { animation: shake .45s ease; }
+
+  /* ── Register page polish ── */
+  .logo-text { border: 0; margin: 0; padding: 0; }                 /* it's an <h1>, so it was inheriting the page-title rule + extra gap */
+  .logo-section { margin-bottom: 22px; padding-bottom: 18px; }
+  .qr-container { min-width: 274px; min-height: 274px; display: inline-flex; align-items: center; justify-content: center; }
+  .qr-container img:not([src]), .qr-container img[src=""] { display: none; }
+  .qr-container:has(img:not([src]))::before, .qr-container:has(img[src=""])::before { content: "QR appears here"; color: #888; font-size: 13px; }
+
+  /* ── Income history modal: fill the width, pin the close button, slim scrollbar ── */
+  .income-modal { position: relative; align-items: stretch; padding-top: 28px; }
+  .income-modal > * { align-self: stretch; }
+  .income-totals, .income-table-wrap, .income-month-nav { width: 100%; }
+  .income-month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .income-table-wrap { overflow-x: auto; }
+  .close-income { position: absolute; top: 14px; right: 18px; font-size: 24px; line-height: 1; color: var(--mu); cursor: pointer; z-index: 2; }
+  .close-income:hover { color: var(--tx); }
+  .modal-content, .table-container, .income-table-wrap { scrollbar-width: thin; scrollbar-color: var(--bd) transparent; }
+
+  /* ── Analytics: month / custom date range pickers ── */
+  .date-range { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .date-range [hidden] { display: none !important; }
+  .date-range input { padding: 9px 14px; border-radius: 50px; font: inherit; font-size: 13px; }
+  .date-range .range-sep, .date-range small { color: var(--fa); font-size: 12px; }
+  .date-range input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .7; }
+}

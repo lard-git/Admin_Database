@@ -7,17 +7,10 @@
   <script type="module" src="js/occupancy.js"></script>
   <script type="module" src="js/ui.js"></script>
   <link rel="stylesheet" href="resources/occupancy.css">
+  <link rel="stylesheet" href="resources/theme.css">
+  <script>(function(){var t=localStorage.getItem("gym_theme");document.documentElement.dataset.theme=["dark","light","amoled","cyberpunk","ink","arcade","gold"].indexOf(t)>-1?t:"dark"})()</script>
 </head>
 <body>
-
-  <div class="sidebar">
-    <h2>Gym Admin</h2>
-    <a href="firebase_crud.html">Register Member</a>
-    <a href="members.html"> Members List</a>
-    <a href="occupancy.html" class="active"> Gym Occupancy</a>
-    <a href="analytics.html">Analytics</a>
-    <button id="themeToggle" class="theme-toggle">Light Mode</button>
-  </div>
 
   <div class="content">
     <div class="page-header">
