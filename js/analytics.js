@@ -1,5 +1,6 @@
 import { db } from './database_init.js';
 import { EnhancedForecaster } from './forecast.js';
+import { withLiveMembership } from './membership.js';
 import { ref, get, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 
 const timeRange = document.getElementById('timeRange');
@@ -751,36 +752,10 @@ function normalizeMemberData(key, data) {
         key, uid,
         firstname: data.personal_info?.firstname || '',
         lastname: data.personal_info?.lastname || '',
-        membership: data.membership || { status: 'active', remaining_days: 30 },
+        membership: withLiveMembership(data.membership),
         gym_data,
         attendance_history
     };
-}
-
-function getActualRemainingDays(member) {
-    const m = member.membership || {};
-    if (m.status === 'expired') return 0;
-
-    if (!m.end_date) {
-        if (m.start_date && m.months_paid) {
-            const start = new Date(m.start_date);
-            const end   = new Date(start);
-            end.setMonth(end.getMonth() + (m.months_paid || 1));
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            return Math.max(0, Math.ceil((end - today) / (1000 * 60 * 60 * 24)));
-        }
-        return m.remaining_days || 0;
-    }
-
-    try {
-        const endDate = new Date(m.end_date);
-        const today   = new Date();
-        today.setHours(0, 0, 0, 0);
-        return Math.max(0, Math.ceil((endDate - today) / (1000 * 60 * 60 * 24)));
-    } catch (e) {
-        return m.remaining_days || 0;
-    }
 }
 
 function showEmptyState() {

@@ -1,5 +1,6 @@
 import { db } from './database_init.js';
 import { ref, set, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { liveRemainingDays, localDateKey } from './membership.js';
 
 const FnameInp = document.getElementById("FnameInp");
 const LnameInp = document.getElementById("LnameInp");
@@ -140,9 +141,9 @@ async function AddData() {
         const endDate = new Date();
         endDate.setMonth(endDate.getMonth() + selectedMonths);
 
-        const startDateStr = startDate.toISOString().split('T')[0];
-        const endDateStr = endDate.toISOString().split('T')[0];
-        const remainingDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+        const startDateStr = localDateKey(startDate);
+        const endDateStr = localDateKey(endDate);
+        const remainingDays = liveRemainingDays({ end_date: endDateStr });
 
         await set(ref(db, "Customers/" + newUID), {
             personal_info: {

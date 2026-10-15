@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Data Cleanup</title>
+<style>
+  :root { --bg:#0d0d14; --s1:#14141d; --s2:#1c1c28; --bd:#2a2a3a; --tx:#f1f1f7; --mu:#a2a2b8; --ac:#b78cff; --ok:#3ddc84; --bad:#ff6b81; --wn:#f5c26b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:14px/1.5 Inter,"Segoe UI",system-ui,sans-serif; padding:32px 16px; }
+  main { max-width:760px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 4px; } p.sub { color:var(--mu); margin:0 0 24px; }
+  section { background:var(--s1); border:1px solid var(--bd); border-radius:12px; padding:20px; margin-bottom:16px; }
+  h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--ac); margin:0 0 14px; }
+  label { display:block; color:var(--mu); font-size:12px; margin-bottom:6px; }
+  input[type=text] { width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--bd); background:var(--s2); color:var(--tx); font:inherit; }
+  input:focus { outline:none; border-color:var(--ac); }
+  .row { display:flex; gap:10px; align-items:end; flex-wrap:wrap; } .row > div { flex:1; min-width:200px; }
+  button { padding:10px 18px; border-radius:8px; border:1px solid var(--ac); background:var(--ac); color:#14081f; font:600 14px Inter,"Segoe UI",system-ui,sans-serif; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--tx); border-color:var(--bd); }
+  button.danger { background:var(--bad); border-color:var(--bad); color:#1a0509; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .stat { flex:1; min-width:140px; background:var(--s2); border:1px solid var(--bd); border-radius:10px; padding:12px; }
+  .stat b { display:block; font-size:22px; } .stat span { color:var(--mu); font-size:12px; }
+  .stat.del b { color:var(--bad); } .stat.keep b { color:var(--ok); }
+  #list { max-height:260px; overflow:auto; background:var(--s2); border:1px solid var(--bd); border-radius:10px; padding:10px 12px; font:12px/1.7 ui-monospace,Consolas,monospace; color:var(--mu); }
+  .note { color:var(--mu); font-size:12px; margin-top:10px; } .warn { color:var(--wn); } .err { color:var(--bad); } .good { color:var(--ok); }
+  progress { width:100%; height:8px; accent-color:var(--ac); margin-top:10px; }
+  .hide { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Test Data Cleanup</h1>
+  <p class="sub">Finds records under <code>Customers</code> whose key contains some text, backs them up, then deletes them.</p>
+
+  <section>
+    <h2>1 · Find</h2>
+    <div class="row">
+      <div><label for="pat">Delete keys that contain</label><input type="text" id="pat" value="TEST" autocomplete="off"></div>
+      <button id="scanBtn">Scan</button>
+    </div>
+    <label style="margin-top:12px;display:flex;gap:8px;align-items:center"><input type="checkbox" id="cs" checked> Match upper/lower case exactly</label>
+    <p class="note">Safety: all-number keys (your real member IDs) are never touched, and real walk-ins like <code>WALKIN_2026-05-18_…</code> are kept unless they contain your text.</p>
+    <p id="scanMsg" class="note"></p>
+  </section>
+
+  <section id="resultBox" class="hide">
+    <h2>2 · Review</h2>
+    <div class="stats">
+      <div class="stat del"><b id="nDel">0</b><span>will be deleted</span></div>
+      <div class="stat keep"><b id="nKeep">0</b><span>will be kept</span></div>
+      <div class="stat"><b id="nTotal">0</b><span>total in Customers</span></div>
+    </div>
+    <div id="list"></div>
+    <p id="warnMsg" class="note warn"></p>
+  </section>
+
+  <section id="runBox" class="hide">
+    <h2>3 · Delete</h2>
+    <p class="note" style="margin-top:0">A backup file of everything listed is downloaded first, then the records are deleted.</p>
+    <div class="row">
+      <div><label for="confirm">Type DELETE to confirm</label><input type="text" id="confirm" autocomplete="off"></div>
+      <button id="runBtn" class="danger" disabled>Back up &amp; delete</button>
+    </div>
+    <progress id="bar" class="hide" max="100" value="0"></progress>
+    <p id="runMsg" class="note"></p>
+  </section>
+
+  <section>
+    <h2>Undo · restore a backup</h2>
+    <p class="note" style="margin-top:0">Adds the records from a backup file back. It merges, so nothing else is overwritten.</p>
+    <input type="file" id="file" accept="application/json"> <button class="ghost" id="restoreBtn" disabled>Restore</button>
+    <p id="restoreMsg" class="note"></p>
+  </section>
+</main>
+
+<script>
+const DB = 'https://gym-database-f4b61-default-rtdb.asia-southeast1.firebasedatabase.app';
+const $ = id => document.getElementById(id);
+let matched = [], totalKeys = 0, backupData = null;
+
+const setMsg = (el, text, cls = '') => { el.textContent = text; el.className = 'note ' + cls; };
+async function api(path, opts) {
+  const r = await fetch(`${DB}/${path}`, opts);
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  return r.json();
+}
+
+// ── 1. scan (keys only: the whole database is never downloaded) ──
+$('scanBtn').onclick = async () => {
+  const pat = $('pat').value.trim();
+  if (!pat) return setMsg($('scanMsg'), 'Type some text to look for.', 'err');
+  setMsg($('scanMsg'), 'Scanning…');
+  try {
+    const keys = Object.keys(await api('Customers.json?shallow=true') || {});
+    const cs = $('cs').checked, norm = s => cs ? s : s.toLowerCase(), p = norm(pat);
+    matched = keys.filter(k => !/^\d+$/.test(k) && norm(k).includes(p)).sort();
+    totalKeys = keys.length;
+    $('nDel').textContent = matched.length;
+    $('nKeep').textContent = totalKeys - matched.length;
+    $('nTotal').textContent = totalKeys;
+    $('list').textContent = matched.length ? matched.join('\n') : 'Nothing matches.';
+    $('list').style.whiteSpace = 'pre';
+    const walkins = matched.filter(k => k.startsWith('WALKIN_')).length;
+    const pct = totalKeys ? matched.length / totalKeys : 0;
+    $('warnMsg').textContent = matched.length
+      ? `${matched.length - walkins} member-style and ${walkins} walk-in records.` + (pct > 0.25 ? ` ⚠ That is ${Math.round(pct * 100)}% of the database. Check the list carefully.` : '')
+      : '';
+    $('resultBox').classList.remove('hide');
+    $('runBox').classList.toggle('hide', !matched.length);
+    setMsg($('scanMsg'), `Scan finished: ${matched.length} match.`, 'good');
+  } catch (e) { setMsg($('scanMsg'), 'Scan failed: ' + e.message, 'err'); }
+};
+
+$('confirm').oninput = () => { $('runBtn').disabled = $('confirm').value !== 'DELETE' || !matched.length; };
+
+// ── 2. back up, then delete in chunks (one request deletes many keys) ──
+$('runBtn').onclick = async () => {
+  const bar = $('bar'), msg = $('runMsg');
+  $('runBtn').disabled = true; $('scanBtn').disabled = true; bar.classList.remove('hide');
+  try {
+    const backup = {};
+    for (let i = 0; i < matched.length; i += 8) {
+      await Promise.all(matched.slice(i, i + 8).map(async k => { backup[k] = await api(`Customers/${encodeURIComponent(k)}.json`); }));
+      bar.value = Math.round((i + 8) / matched.length * 50);
+      setMsg(msg, `Backing up… ${Math.min(i + 8, matched.length)}/${matched.length}`);
+    }
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ Customers: backup }, null, 1)], { type: 'application/json' }));
+    a.download = `gym-backup-${stamp}.json`; a.click();
+
+    for (let i = 0; i < matched.length; i += 50) {
+      const body = {}; matched.slice(i, i + 50).forEach(k => body[k] = null);
+      await api('Customers.json', { method: 'PATCH', body: JSON.stringify(body) });
+      bar.value = 50 + Math.round((i + 50) / matched.length * 50);
+      setMsg(msg, `Deleting… ${Math.min(i + 50, matched.length)}/${matched.length}`);
+    }
+    bar.value = 100;
+    setMsg(msg, `Done. ${matched.length} records deleted. Your backup file was saved to Downloads.`, 'good');
+    matched = []; $('confirm').value = '';
+  } catch (e) { setMsg(msg, 'Stopped: ' + e.message + ' (anything already backed up is in your Downloads.)', 'err'); }
+  $('scanBtn').disabled = false;
+};
+
+// ── 3. restore ──
+$('file').onchange = async () => {
+  try { backupData = JSON.parse(await $('file').files[0].text()).Customers; $('restoreBtn').disabled = !backupData; }
+  catch { backupData = null; $('restoreBtn').disabled = true; setMsg($('restoreMsg'), 'That is not a valid backup file.', 'err'); }
+};
+$('restoreBtn').onclick = async () => {
+  try {
+    const keys = Object.keys(backupData);
+    for (let i = 0; i < keys.length; i += 25) {
+      const body = {}; keys.slice(i, i + 25).forEach(k => body[k] = backupData[k]);
+      await api('Customers.json', { method: 'PATCH', body: JSON.stringify(body) });
+    }
+    setMsg($('restoreMsg'), `Restored ${keys.length} records.`, 'good');
+  } catch (e) { setMsg($('restoreMsg'), 'Restore failed: ' + e.message, 'err'); }
+};
+</script>
+</body>
+</html>

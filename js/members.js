@@ -1,5 +1,6 @@
 import { db } from './database_init.js';
 import { ref, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { liveRemainingDays, localDateKey, parseDate } from './membership.js';
 
 const customersRef = ref(db, "Customers");
 const tableBody = document.getElementById("memberTableBody");
@@ -305,29 +306,7 @@ function updateSummaryCards(members, revenue = totalMonthlyRevenue) {
 }
 
 function getActualRemainingDays(member) {
-    if (member.membership?.status === 'expired') return 0;
-
-    if (!member.membership?.end_date) {
-        if (member.membership?.start_date && member.membership?.months_paid) {
-            const start = new Date(member.membership.start_date);
-            const end = new Date(start);
-            end.setMonth(end.getMonth() + (member.membership.months_paid || 1));
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            return Math.max(0, Math.ceil((end - today) / (1000 * 60 * 60 * 24)));
-        }
-        return member.membership?.remaining_days || 0;
-    }
-
-    try {
-        const endDate = new Date(member.membership.end_date);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const remaining = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
-        return Math.max(0, remaining);
-    } catch (e) {
-        return member.membership?.remaining_days || 0;
-    }
+    return liveRemainingDays(member.membership);
 }
 
 function getStatusPriority(member) {
@@ -539,20 +518,14 @@ async function handleConfirmEdit() {
         const memberData = snapshot.val();
 
         const currentMembership = memberData.membership || {};
-        let currentEndDate;
-        let currentRemainingDays = currentMembership.remaining_days || 0;
-
-        if (currentMembership.end_date && currentRemainingDays > 0) {
-            currentEndDate = new Date(currentMembership.end_date);
-        } else {
-            currentEndDate = new Date();
-            currentRemainingDays = 0;
-        }
+        // Extend from the current end date only while the membership is still running; an expired one restarts from today
+        const stillActive = !!currentMembership.end_date && liveRemainingDays(currentMembership) > 0;
+        const currentEndDate = stillActive ? parseDate(currentMembership.end_date) : new Date();
 
         const newEndDate = new Date(currentEndDate);
         newEndDate.setMonth(newEndDate.getMonth() + newMonths);
-
-        const totalRemainingDays = Math.ceil((newEndDate - new Date()) / (1000 * 60 * 60 * 24));
+        const newEndKey = localDateKey(newEndDate);
+        const totalRemainingDays = liveRemainingDays({ end_date: newEndKey });
         const currentMonthsTotal = currentMembership.months_paid || 0;
         const totalMonths = currentMonthsTotal + newMonths;
         const currentPaymentTotal = currentMembership.payment_amount || 0;
@@ -573,10 +546,10 @@ async function handleConfirmEdit() {
             "membership/monthly_rate": newMonthlyRate,
             "membership/payment_amount": totalPayment,
             "membership/months_paid": totalMonths,
-            "membership/start_date": currentMembership.start_date || new Date().toISOString().split('T')[0],
-            "membership/end_date": newEndDate.toISOString().split('T')[0],
+            "membership/start_date": stillActive ? (currentMembership.start_date || localDateKey()) : localDateKey(),
+            "membership/end_date": newEndKey,
             "membership/remaining_days": totalRemainingDays,
-            "membership/last_updated": new Date().toISOString().split('T')[0],
+            "membership/last_updated": localDateKey(),
             "membership/status": "active"
         });
 

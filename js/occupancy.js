@@ -1,5 +1,6 @@
 import { db } from './database_init.js';
 import { ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { withLiveMembership } from './membership.js';
 
 const memberUidInput = document.getElementById('memberUidInput');
 const checkInOutBtn = document.getElementById('checkInOutBtn');
@@ -136,7 +137,7 @@ function normalizeMemberData(key, data) {
         firstname: data.personal_info?.firstname || '',
         lastname: data.personal_info?.lastname || '',
         phone: data.personal_info?.phone || '',
-        membership: data.membership || { status: 'active', remaining_days: 30, start_date: '', end_date: '' },
+        membership: withLiveMembership(data.membership),
         gym_data: {
             is_checked_in: data.gym_data?.is_checked_in || false,
             last_checkin: data.gym_data?.last_checkin || null,

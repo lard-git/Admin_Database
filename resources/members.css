@@ -361,27 +361,25 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 .name {
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px 16px;
     width: 100%;
-    gap: 16px;
+    align-items: end;
 }
 
-.x {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    cursor: pointer;
-}
-
-.x:hover { opacity: 0.7; }
+/* the rows and the close wrapper only group markup: let their fields sit directly in the grid */
+.name .form-row, .x { display: contents; }
+.name .form-group { margin-bottom: 0; }
+.name .half-width:empty { display: none; }
+.name > .form-group:not(.half-width) { grid-column: 1 / -1; }   /* home address spans the full width */
+.name label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .edit-form {
     margin-top: 12px;
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: stretch;   /* payment panel and summary panel end up the same height */
     gap: 24px;
     width: 100%;
     flex-wrap: wrap;
@@ -523,6 +521,16 @@ tbody tr:last-child td { border-bottom: none; }
     font-size: 13px;
     border-radius: 50px;
     width: auto;
+    margin: 0;
+}
+
+/* Cancel also carries the .close-edit class, which pins it to the corner like the × button: put it back in the row */
+.modal-buttons .close-edit {
+    position: static;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: normal;
+    color: inherit;
 }
 
 .btn-primary { background: #ebc069; color: #121212; }
@@ -656,3 +664,6 @@ tbody tr:last-child td { border-bottom: none; }
     text-align: center;
     flex: 1;
 }
+
+@media (max-width: 900px) { .name { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .name { grid-template-columns: 1fr; } }
