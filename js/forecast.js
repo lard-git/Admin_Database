@@ -1,14 +1,3 @@
-// forecast.js — next-hour check-in forecast from the gym's own hourly history.
-//
-// Series : check-ins per hour (members + walk-ins).
-// Method : seasonal baseline + level correction, validated by a rolling back-test.
-//   1. Seasonal baseline for the target hour = recency-weighted average of the same hour-of-week in
-//      previous weeks (up to 8), blended with the same hour on recent weekdays/weekends when there are
-//      only a few weeks of history.
-//   2. Level correction: what actually happened over the last ~3 hours vs what the baseline expected
-//      for them (damped ratio) scales the baseline, catching "busier/quieter than usual today".
-//   3. Confidence and the 80% range come from re-running steps 1-2 on the last 4 days (one-step-ahead,
-//      using only data available at the time) and measuring the error.
 
 const HOUR = 3600000, DAY = 24 * HOUR, WEEK = 7 * DAY;
 const floorHour = t => { const d = new Date(t); d.setMinutes(0, 0, 0); return d.getTime(); };
