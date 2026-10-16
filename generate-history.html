@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Generate Member History</title>
+<style>
+  :root { --bg:#0d0d14; --s1:#14141d; --s2:#1c1c28; --bd:#2a2a3a; --tx:#f1f1f7; --mu:#a2a2b8; --ac:#b78cff; --ok:#3ddc84; --bad:#ff6b81; --wn:#f5c26b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:14px/1.5 Inter,"Segoe UI",system-ui,sans-serif; padding:32px 16px; }
+  main { max-width:1000px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 4px; } p.sub { color:var(--mu); margin:0 0 24px; }
+  section { background:var(--s1); border:1px solid var(--bd); border-radius:12px; padding:20px; margin-bottom:16px; }
+  h2 { font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--ac); margin:0 0 14px; }
+  label { display:block; color:var(--mu); font-size:12px; margin-bottom:6px; }
+  textarea, input[type=text], input[type=number], select { width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--bd); background:var(--s2); color:var(--tx); font:inherit; }
+  textarea { font:12px/1.6 ui-monospace,Consolas,monospace; min-height:90px; resize:vertical; }
+  :focus { outline:none; border-color:var(--ac); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-top:14px; }
+  .chk { display:flex; gap:8px; align-items:flex-start; color:var(--tx); font-size:13px; margin-top:12px; }
+  .chk input { margin-top:3px; }
+  button { padding:10px 18px; border-radius:8px; border:1px solid var(--ac); background:var(--ac); color:#14081f; font:600 14px Inter,"Segoe UI",system-ui,sans-serif; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--tx); border-color:var(--bd); } button.danger { background:var(--bad); border-color:var(--bad); color:#1a0509; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  .row { display:flex; gap:10px; align-items:end; flex-wrap:wrap; margin-top:14px; } .row > div { flex:1; min-width:180px; }
+  .note { color:var(--mu); font-size:12px; margin:10px 0 0; } .good { color:var(--ok); } .err { color:var(--bad); } .warn { color:var(--wn); }
+  .wrap { overflow-x:auto; margin-top:12px; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  th { text-align:left; color:var(--mu); font-size:11px; letter-spacing:.06em; text-transform:uppercase; padding:8px 10px; border-bottom:1px solid var(--bd); white-space:nowrap; }
+  td { padding:8px 10px; border-bottom:1px solid var(--bd); white-space:nowrap; } td.id { font-family:ui-monospace,Consolas,monospace; }
+  pre { background:var(--s2); border:1px solid var(--bd); border-radius:10px; padding:12px; font:12px/1.7 ui-monospace,Consolas,monospace; color:var(--mu); margin:10px 0 0; max-height:220px; overflow:auto; }
+  progress { width:100%; height:8px; accent-color:var(--ac); margin-top:10px; } .hide { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Generate Member History</h1>
+  <p class="sub">Writes realistic, personalised check-in history (different routines, session lengths and start dates per member) to the accounts you list.</p>
+
+  <section>
+    <h2>1 · Accounts &amp; settings</h2>
+    <label for="ids">Member IDs (8 digits, separated by spaces, commas or new lines)</label>
+    <textarea id="ids">25131393 25918247 28960121 30476509 32999963 40329664 42095151 42528882 44990275 46044145 47542636 48457308 58086428 64865002 72432266 78905686 80331912 81805979 83803826 86280960 87372179 88482695 96643196 97026425</textarea>
+    <div class="grid">
+      <div><label for="skip">Never touch these IDs</label><input type="text" id="skip" value="30000000"></div>
+      <div><label for="days">History length (days)</label><input type="number" id="days" value="90" min="14" max="180"></div>
+      <div><label for="seed">Random seed (change it to get a different set)</label><input type="number" id="seed" value="1"></div>
+      <div><label for="wpd">Walk-ins per day (average, 0 = none)</label><input type="number" id="wpd" value="2" min="0" max="15" step="0.5"></div>
+      <div><label for="mode">If a member already has visits</label>
+        <select id="mode"><option value="keep">Keep them and add history around them</option><option value="replace">Replace their history</option></select></div>
+    </div>
+    <label class="chk"><input type="checkbox" id="setdates" checked><span>Also set each member's <b>membership start and end dates</b> to match their history (staggered join dates, still active today). This changes the payment and revenue figures too.</span></label>
+    <div class="row"><button id="loadBtn">Load members &amp; preview</button></div>
+    <p id="loadMsg" class="note"></p>
+  </section>
+
+  <section id="prevBox" class="hide">
+    <h2>2 · Preview (nothing is written yet)</h2>
+    <div class="wrap"><table>
+      <thead><tr><th>ID</th><th>Name</th><th>Style</th><th>Joined</th><th>Membership ends</th><th>Visits</th><th>Per week</th><th>Avg session</th><th>Usual time</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+    <div class="row"><div><label for="sample">Sample visits for</label><select id="sample"></select></div></div>
+    <pre id="samplePre"></pre>
+    <p id="prevNote" class="note"></p>
+    <p id="walkinNote" class="note"></p>
+  </section>
+
+  <section id="runBox" class="hide">
+    <h2>3 · Write to database</h2>
+    <p class="note" style="margin-top:0">A backup of these members' current records downloads first. Generated visits and walk-ins are tagged <code>demo</code> so they can be removed again. Walk-ins are new records (₱40 each, the default day-pass price), so they also show up in revenue.</p>
+    <div class="row"><div><label for="confirm">Type APPLY to confirm</label><input type="text" id="confirm" autocomplete="off"></div><button id="runBtn" class="danger" disabled>Back up &amp; write</button></div>
+    <progress id="bar" class="hide" max="100" value="0"></progress>
+    <p id="runMsg" class="note"></p>
+  </section>
+
+  <section>
+    <h2>Undo</h2>
+    <p class="note" style="margin-top:0"><b>Remove generated visits</b> deletes only the visits tagged <code>demo</code> for the IDs above and fixes the totals. Membership dates are not reverted that way: use the backup file for a full restore.</p>
+    <div class="row"><button class="ghost" id="removeBtn">Remove generated visits</button><button class="ghost" id="removeWBtn">Remove generated walk-ins</button></div>
+    <div class="row"><div><label for="file">Restore from backup file</label><input type="file" id="file" accept="application/json"></div><button class="ghost" id="restoreBtn" disabled>Restore</button></div>
+    <p id="undoMsg" class="note"></p>
+  </section>
+</main>
+
+<script>
+const DB = 'https://gym-database-f4b61-default-rtdb.asia-southeast1.firebasedatabase.app';
+const OPEN = 7, CLOSE = 20;                       // gym hours (7:00 AM – 8:00 PM)
+const ALWAYS_SKIP = ['30000000'];
+
+// ===== GEN START (pure functions: no page access) =====
+const hash = s => { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+const rngFrom = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const dayKey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const midnight = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+// Routines people actually have. hour = usual arrival window, dur = typical session minutes.
+const STYLES = [
+  { name: 'Early bird',      pool: [1,2,3,4,5],   perWeek: [4,5], hour: [7, 8.5],   dur: [55, 70]  },
+  { name: 'Lunch break',     pool: [1,2,3,4,5],   perWeek: [3,4], hour: [11, 13],   dur: [45, 60]  },
+  { name: 'After work',      pool: [1,2,3,4,5],   perWeek: [3,5], hour: [17, 18.5], dur: [70, 90]  },
+  { name: 'Weekend warrior', pool: [6,0,6,0,3,5], perWeek: [2,3], hour: [9, 15],    dur: [80, 105] },
+  { name: 'Casual',          pool: [0,1,2,3,4,5,6], perWeek: [2,2], hour: [8, 18],  dur: [40, 60]  },
+  { name: 'Grinder',         pool: [1,2,3,4,5,6], perWeek: [5,6], hour: [7, 10],    dur: [85, 110] },
+];
+
+function generate(uid, opts, now = new Date()) {
+  const r = rngFrom(hash(uid + ':' + opts.seed));
+  const rnd = (a, b) => a + r() * (b - a), int = (a, b) => Math.floor(rnd(a, b + 1));
+  const normal = (m, sd) => m + sd * Math.sqrt(-2 * Math.log(r() || 1e-9)) * Math.cos(2 * Math.PI * r());
+  const today = midnight(now), windowStart = addDays(today, -opts.days);
+
+  // who they are
+  const st = STYLES[int(0, STYLES.length - 1)];
+  const perWeek = int(st.perWeek[0], st.perWeek[1]);
+  const prefDays = []; for (const d of [...st.pool].sort(() => r() - .5)) { if (!prefDays.includes(d) && prefDays.length < perWeek) prefDays.push(d); }
+  const durMean = Math.round(rnd(st.dur[0], st.dur[1]));       // e.g. 60 for one member, 80 for another
+  const usualHour = rnd(st.hour[0], st.hour[1]);
+  const adherence = rnd(0.72, 0.95);
+  const trend = [-0.3, 0, 0, 0.18][int(0, 3)];                  // fading, steady, steady, or getting keener
+  const gap = r() < 0.5 ? { from: int(10, opts.days - 15), len: int(4, 10) } : null;   // a week off (illness, travel)
+
+  // when they joined
+  const joinedBefore = r() < 0.4;
+  const joinDaysAgo = joinedBefore ? int(opts.days + 3, opts.days + 70) : int(10, opts.days - 3);
+  const join = addDays(today, -joinDaysAgo);
+  let months = 1; const mk = m => { const e = new Date(join); e.setMonth(e.getMonth() + m); return e; };
+  while (months < 12 && (mk(months) - today) / 864e5 < 7) months++;
+  if (months < 12 && r() < 0.3) months++;
+  const end = mk(months);
+
+  // visits, day by day from the later of (window start, join date) up to yesterday
+  const first = join > windowStart ? join : windowStart, visits = [];
+  for (let d = new Date(first); d < today; d = addDays(d, 1)) {
+    const t = (d - windowStart) / (today - windowStart);
+    const dayIdx = Math.round((d - windowStart) / 864e5);
+    if (gap && dayIdx >= gap.from && dayIdx < gap.from + gap.len) continue;
+    let p = prefDays.includes(d.getDay()) ? adherence * (1 + trend * (t - 0.5) * 2) : 0.05;
+    if (+d === +join) p = 0.85;
+    if (r() >= p) continue;
+    let start = clamp(normal(usualHour, 0.45), OPEN, CLOSE - 0.6);
+    let dur = Math.round(clamp(normal(durMean, 9), 25, 150));
+    if (start + dur / 60 > CLOSE) { dur = Math.max(25, Math.round((CLOSE - start) * 60) - int(0, 10)); start = Math.min(start, CLOSE - dur / 60); }
+    const cin = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(start), Math.round((start % 1) * 60));
+    const cout = new Date(+cin + dur * 60000);
+    visits.push({ checkin: cin.toISOString(), checkout: cout.toISOString(), time_spent: dur, date: cin.toISOString().split('T')[0], demo: true });
+  }
+  visits.sort((a, b) => b.checkin.localeCompare(a.checkin));      // newest first, like the admin panel stores it
+  return { style: st.name, perWeek, durMean, usualHour, join, end, months, visits };
+}
+
+// Walk-ins: day-pass visitors. More at weekends, with lunchtime / after-work / weekend-morning peaks.
+function genWalkins(opts, now = new Date()) {
+  const out = [], today = midnight(now);
+  const mult = [1.2, 0.8, 0.8, 0.9, 0.9, 1.1, 1.5];            // Sun..Sat
+  for (let i = opts.days; i >= 1; i--) {
+    const d = addDays(today, -i), k = dayKey(d), r = rngFrom(hash(`walkin:${opts.seed}:${k}`));
+    const rnd = (a, b) => a + r() * (b - a);
+    const normal = (m, sd) => m + sd * Math.sqrt(-2 * Math.log(r() || 1e-9)) * Math.cos(2 * Math.PI * r());
+    // Poisson count for the day
+    const L = Math.exp(-opts.walkins * mult[d.getDay()]); let n = 0, p = r(); while (p > L && n < 20) { n++; p *= r(); }
+    for (let j = 0; j < n; j++) {
+      const weekend = d.getDay() === 0 || d.getDay() === 6, roll = r();
+      const centre = weekend ? (roll < 0.6 ? 10.5 : 15) : (roll < 0.5 ? 12.8 : roll < 0.9 ? 18 : 8.8);
+      let start = clamp(normal(centre, 0.8), OPEN, CLOSE - 0.6), dur = Math.round(clamp(normal(60, 15), 20, 120));
+      if (start + dur / 60 > CLOSE) { dur = Math.max(20, Math.round((CLOSE - start) * 60) - 5); start = Math.min(start, CLOSE - dur / 60); }
+      const cin = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(start), Math.round((start % 1) * 60), Math.floor(rnd(0, 59)), Math.floor(rnd(0, 999)));   // seconds + ms so IDs look natural
+      const cout = new Date(+cin + dur * 60000), date = cin.toISOString().split('T')[0], ts = +cin;
+      const key = `WALKIN_${date}_${ts}_dm${Math.floor(rnd(1000, 9999))}`;
+      out.push({ key, ts, hour: start, rec: {
+        personal_info: { firstname: 'WALK-IN', lastname: '#' + String(ts).slice(-4), uid: key, type: 'daypass' },
+        gym_data: { is_checked_in: false, last_checkin: cin.toISOString(), last_checkout: cout.toISOString(), total_visits: 1, total_time_spent: dur, time_spent: dur, uid: key },
+        membership: { status: 'active', remaining_days: 1, start_date: date, end_date: date },
+        attendance_history: [{ checkin: cin.toISOString(), checkout: cout.toISOString(), time_spent: dur, date, demo: true }],
+        demo: true } });
+    }
+  }
+  return out.sort((a, b) => a.ts - b.ts);
+}
+// ===== GEN END =====
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const setMsg = (el, t, cls = '') => { el.textContent = t; el.className = 'note ' + cls; };
+const fmtTime = h => { const hh = Math.floor(h), m = Math.round((h % 1) * 60); return `${((hh + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${hh < 12 ? 'AM' : 'PM'}`; };
+async function api(path, opts) { const r = await fetch(`${DB}/${path}`, opts); if (!r.ok) throw new Error(`${r.status} ${await r.text()}`); return r.json(); }
+const parseIds = t => [...new Set(t.split(/[\s,;]+/).filter(x => /^\d{8}$/.test(x)))];
+const targetIds = () => { const skip = new Set([...ALWAYS_SKIP, ...parseIds($('skip').value)]); return parseIds($('ids').value).filter(i => !skip.has(i)); };
+
+let records = {}, plans = {}, walkins = [], backupData = null;
+
+// ── 1. load + preview ──
+$('loadBtn').onclick = async () => {
+  const ids = targetIds(); if (!ids.length) return setMsg($('loadMsg'), 'No valid IDs to work on.', 'err');
+  setMsg($('loadMsg'), 'Loading…'); records = {}; plans = {}; walkins = [];
+  try {
+    for (let i = 0; i < ids.length; i += 8)
+      await Promise.all(ids.slice(i, i + 8).map(async id => { records[id] = await api(`Customers/${id}.json`); }));
+    const opts = { days: clamp(+$('days').value || 90, 14, 180), seed: +$('seed').value || 1 };
+    const missing = [], rows = [];
+    for (const id of ids) {
+      const rec = records[id];
+      if (!rec || !rec.personal_info) { missing.push(id); continue; }
+      const g = plans[id] = generate(id, opts);
+      const name = `${rec.personal_info.firstname || ''} ${rec.personal_info.lastname || rec.personal_info.Lastname || ''}`.trim() || '—';
+      const avg = g.visits.length ? Math.round(g.visits.reduce((s, v) => s + v.time_spent, 0) / g.visits.length) : 0;
+      const weeks = Math.max(1, (Math.min(+new Date(), Infinity) - Math.max(+g.join, Date.now() - opts.days * 864e5)) / (7 * 864e5));
+      rows.push(`<tr><td class="id">${id}</td><td>${esc(name)}</td><td>${g.style}</td><td>${dayKey(g.join)}</td><td>${dayKey(g.end)} (${g.months} mo)</td><td>${g.visits.length}</td><td>${(g.visits.length / weeks).toFixed(1)}</td><td>${avg} min</td><td>${fmtTime(g.usualHour)}</td></tr>`);
+    }
+    $('rows').innerHTML = rows.join('');
+    const wpd = Math.max(0, +$('wpd').value || 0);
+    walkins = wpd > 0 ? genWalkins({ ...opts, walkins: wpd }) : [];
+    if (walkins.length) {
+      const byHour = {}; walkins.forEach(w => { const h = Math.floor(w.hour); byHour[h] = (byHour[h] || 0) + 1; });
+      const top = Object.entries(byHour).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([h, n]) => `${fmtTime(+h)} (${n})`).join(', ');
+      setMsg($('walkinNote'), `Walk-ins: ${walkins.length} over ${opts.days} days (about ${(walkins.length / opts.days).toFixed(1)} a day, ₱${walkins.length * 40} in day-pass fees). Busiest hours: ${top}.`, 'good');
+    } else setMsg($('walkinNote'), 'No walk-ins will be generated.');
+    $('sample').innerHTML = Object.keys(plans).map(i => `<option>${i}</option>`).join('');
+    showSample();
+    const over = Object.values(plans).filter(g => g.visits.length > 100).length;
+    setMsg($('prevNote'), `${Object.keys(plans).length} members ready.` + (missing.length ? ` Not found / incomplete, skipped: ${missing.join(', ')}.` : '') + (over ? ` ${over} member(s) exceed 100 visits; the admin panel keeps only the newest 100.` : ''), missing.length ? 'warn' : 'good');
+    $('prevBox').classList.remove('hide'); $('runBox').classList.toggle('hide', !Object.keys(plans).length && !walkins.length);
+    setMsg($('loadMsg'), 'Preview built. Change the seed and reload for a different set.', 'good');
+  } catch (e) { setMsg($('loadMsg'), 'Failed: ' + e.message, 'err'); }
+};
+function showSample() {
+  const g = plans[$('sample').value]; if (!g) { $('samplePre').textContent = ''; return; }
+  $('samplePre').textContent = g.visits.slice(0, 10).map(v => { const a = new Date(v.checkin), b = new Date(v.checkout);
+    return `${a.toDateString().slice(0, 10)}  ${fmtTime(a.getHours() + a.getMinutes() / 60)} → ${fmtTime(b.getHours() + b.getMinutes() / 60)}   ${v.time_spent} min`; }).join('\n') + '\n…';
+}
+$('sample').onchange = showSample;
+$('confirm').oninput = () => { $('runBtn').disabled = $('confirm').value !== 'APPLY' || (!Object.keys(plans).length && !walkins.length); };
+
+// ── 2. write ──
+function buildUpdates() {
+  const up = {}, setDates = $('setdates').checked, replace = $('mode').value === 'replace';
+  for (const [id, g] of Object.entries(plans)) {
+    const rec = records[id], old = replace ? [] : (rec.attendance_history || []);
+    const oldDays = new Set(old.map(v => dayKey(new Date(v.checkin))));
+    const fresh = g.visits.filter(v => !oldDays.has(dayKey(new Date(v.checkin))));
+    const merged = [...old, ...fresh].sort((a, b) => b.checkin.localeCompare(a.checkin)).slice(0, 100);
+    const gd = rec.gym_data || {}, addMin = fresh.reduce((s, v) => s + v.time_spent, 0);
+    up[`${id}/attendance_history`] = merged;
+    up[`${id}/gym_data/total_visits`] = (replace ? 0 : gd.total_visits || 0) + fresh.length;
+    up[`${id}/gym_data/total_time_spent`] = (replace ? 0 : gd.total_time_spent || 0) + addMin;
+    if (!gd.is_checked_in && merged[0]) { up[`${id}/gym_data/last_checkin`] = merged[0].checkin; up[`${id}/gym_data/last_checkout`] = merged[0].checkout; }
+    if (setDates) {
+      const m = rec.membership || {}, rate = m.monthly_rate || (m.plan === 'student' ? 600 : 800);
+      Object.assign(up, {
+        [`${id}/membership/start_date`]: dayKey(g.join), [`${id}/membership/end_date`]: dayKey(g.end),
+        [`${id}/membership/months_paid`]: g.months, [`${id}/membership/monthly_rate`]: rate, [`${id}/membership/payment_amount`]: rate * g.months,
+        [`${id}/membership/remaining_days`]: Math.ceil((new Date(g.end).setHours(23, 59, 59, 999) - Date.now()) / 864e5),
+        [`${id}/membership/status`]: 'active', [`${id}/membership/last_updated`]: dayKey(g.join),
+      });
+    }
+  }
+  return up;
+}
+$('runBtn').onclick = async () => {
+  const bar = $('bar'), msg = $('runMsg'); $('runBtn').disabled = true; bar.classList.remove('hide');
+  try {
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-'), backup = {};
+    Object.keys(plans).forEach(id => backup[id] = records[id]);
+    if (Object.keys(backup).length) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify({ Customers: backup }, null, 1)], { type: 'application/json' }));
+      a.download = `members-backup-${stamp}.json`; a.click();
+    }
+    const up = buildUpdates(), ids = Object.keys(plans);
+    for (let i = 0; i < ids.length; i += 4) {
+      const part = {}; for (const [k, v] of Object.entries(up)) if (ids.slice(i, i + 4).includes(k.split('/')[0])) part[k] = v;
+      await api('Customers.json', { method: 'PATCH', body: JSON.stringify(part) });
+      bar.value = Math.round(Math.min(i + 4, ids.length) / ids.length * 100); setMsg(msg, `Writing… ${Math.min(i + 4, ids.length)}/${ids.length}`);
+    }
+    for (let i = 0; i < walkins.length; i += 40) {
+      const part = {}; walkins.slice(i, i + 40).forEach(w => part[w.key] = w.rec);
+      await api('Customers.json', { method: 'PATCH', body: JSON.stringify(part) });
+      bar.value = Math.round(Math.min(i + 40, walkins.length) / walkins.length * 100); setMsg(msg, `Writing walk-ins… ${Math.min(i + 40, walkins.length)}/${walkins.length}`);
+    }
+    setMsg(msg, `Done: ${ids.length} members updated and ${walkins.length} walk-ins added. Backup saved to Downloads. Reload the admin pages to see it.`, 'good'); $('confirm').value = '';
+  } catch (e) { setMsg(msg, 'Stopped: ' + e.message, 'err'); }
+};
+
+// ── undo ──
+$('removeBtn').onclick = async () => {
+  const ids = targetIds(); setMsg($('undoMsg'), 'Working…'); let n = 0;
+  try {
+    for (const id of ids) {
+      const rec = await api(`Customers/${id}.json`); if (!rec || !rec.attendance_history) continue;
+      const hist = Object.values(rec.attendance_history), gone = hist.filter(v => v.demo), keep = hist.filter(v => !v.demo);
+      if (!gone.length) continue; n += gone.length;
+      const gd = rec.gym_data || {};
+      await api('Customers.json', { method: 'PATCH', body: JSON.stringify({
+        [`${id}/attendance_history`]: keep,
+        [`${id}/gym_data/total_visits`]: Math.max(0, (gd.total_visits || 0) - gone.length),
+        [`${id}/gym_data/total_time_spent`]: Math.max(0, (gd.total_time_spent || 0) - gone.reduce((s, v) => s + (v.time_spent || 0), 0)) }) });
+    }
+    setMsg($('undoMsg'), `Removed ${n} generated visits.`, 'good');
+  } catch (e) { setMsg($('undoMsg'), 'Failed: ' + e.message, 'err'); }
+};
+$('removeWBtn').onclick = async () => {
+  setMsg($('undoMsg'), 'Looking for generated walk-ins…');
+  try {
+    const keys = Object.keys(await api('Customers.json?shallow=true') || {}).filter(k => /^WALKIN_.+_dm\d+$/.test(k));
+    for (let i = 0; i < keys.length; i += 50) { const part = {}; keys.slice(i, i + 50).forEach(k => part[k] = null); await api('Customers.json', { method: 'PATCH', body: JSON.stringify(part) }); }
+    setMsg($('undoMsg'), `Removed ${keys.length} generated walk-ins.`, 'good');
+  } catch (e) { setMsg($('undoMsg'), 'Failed: ' + e.message, 'err'); }
+};
+$('file').onchange = async () => { try { backupData = JSON.parse(await $('file').files[0].text()).Customers; $('restoreBtn').disabled = !backupData; } catch { backupData = null; $('restoreBtn').disabled = true; setMsg($('undoMsg'), 'Not a valid backup file.', 'err'); } };
+$('restoreBtn').onclick = async () => {
+  try { const ids = Object.keys(backupData);
+    for (let i = 0; i < ids.length; i += 5) { const part = {}; ids.slice(i, i + 5).forEach(k => part[k] = backupData[k]); await api('Customers.json', { method: 'PATCH', body: JSON.stringify(part) }); }
+    setMsg($('undoMsg'), `Restored ${ids.length} members to the backed-up state.`, 'good');
+  } catch (e) { setMsg($('undoMsg'), 'Restore failed: ' + e.message, 'err'); }
+};
+</script>
+</body>
+</html>

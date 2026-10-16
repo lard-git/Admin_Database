@@ -188,4 +188,10 @@
   .date-range input { padding: 9px 14px; border-radius: 50px; font: inherit; font-size: 13px; }
   .date-range .range-sep, .date-range small { color: var(--fa); font-size: 12px; }
   .date-range input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .7; }
+
+  /* ── Members table: Edit/Delete stay pinned at the right edge while the wide table scrolls sideways ── */
+  .table-container th:last-child, .table-container td:last-child { position: sticky; right: 0; z-index: 1; }
+  .table-container th:last-child { background: var(--s2); }
+  .table-container td:last-child { background: var(--s1); box-shadow: -10px 0 12px -10px rgba(0,0,0,.45); }
+  .table-container tbody tr:hover td:last-child { background: color-mix(in srgb, var(--ac) 6%, var(--s1)); }
 }

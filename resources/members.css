@@ -158,7 +158,7 @@ tbody tr.row-expired { opacity: 0.7; }
 .table-container {
     background: #181818;
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;   /* 17 columns: scroll sideways instead of clipping the last one */
     border: 1px solid #282828;
 }
 
@@ -236,8 +236,9 @@ tbody tr:last-child td { border-bottom: none; }
 /* ── Action Buttons ── */
 .action-buttons {
     display: flex;
+    flex-direction: column;
     gap: 6px;
-    flex-wrap: wrap;
+    min-width: 108px;
 }
 
 .btn {

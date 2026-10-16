@@ -139,8 +139,8 @@ function updatePredictionDisplay() {
     const p = forecaster.getPrediction();
     if (!p.ready) { aiNextHour.textContent = '—'; aiConfidence.textContent = p.factors[0]; return; }
 
-    const level = forecaster.level(p.raw), predColor = crowdColor(level);
-    aiNextHour.textContent = p.prediction;
+    const level = p.closed ? 'Closed' : forecaster.level(p.raw), predColor = crowdColor(level);
+    aiNextHour.textContent = p.raw < 10 ? p.raw.toFixed(1) : Math.round(p.raw);   // 0.4 expected arrivals is more useful than "0"
     aiNextHour.style.color = predColor;
 
     const confidencePct = Math.round(p.confidence * 100);
@@ -161,7 +161,7 @@ function updatePredictionDisplay() {
     fill.style.width = `${confidencePct}%`;
     fill.style.backgroundColor = confidenceColor;
 
-    aiConfidence.textContent = `${confidencePct}% confidence \u2022 likely ${p.range[0]}\u2013${p.range[1]} check-ins \u2022 ${p.factors.join(', ')}`;
+    aiConfidence.textContent = p.closed ? p.factors[0] : `${confidencePct}% confidence \u2022 likely ${p.range[0]}\u2013${p.range[1]} check-ins \u2022 ${p.factors.join(', ')}`;
     aiConfidence.style.color = confidenceColor;
 
     let crowdLabel = document.getElementById('crowdLabel');
@@ -512,10 +512,10 @@ function updateHourlyChartPrediction() {
     const ds = hourlyTrafficChart.data.datasets[1];
     if (!ds || !p.ready) return;
     const data = Array(24).fill(null);
-    data[(new Date().getHours() + 1) % 24] = p.prediction;
+    data[(new Date().getHours() + 1) % 24] = +p.raw.toFixed(1);
     ds.data = data;
-    ds.label = `Forecast next hour: ${p.prediction}`;
-    ds.borderColor = ds.pointBackgroundColor = crowdColor(forecaster.level(p.raw));
+    ds.label = `Forecast next hour: ${p.raw.toFixed(1)}`;
+    ds.borderColor = ds.pointBackgroundColor = crowdColor(p.closed ? 'Closed' : forecaster.level(p.raw));
     hourlyTrafficChart.update('none');
 }
 
@@ -530,8 +530,8 @@ function updateHourlyTrafficChart(hourlyCount, spanDays = 1) {
     const prediction = forecaster.getPrediction();
     const nextHourIndex = (new Date().getHours() + 1) % 24;
     const predictionData = Array(24).fill(null);
-    if (prediction.ready) predictionData[nextHourIndex] = prediction.prediction;
-    const predColor = prediction.ready ? crowdColor(forecaster.level(prediction.raw)) : getColors().primary;
+    if (prediction.ready) predictionData[nextHourIndex] = +prediction.raw.toFixed(1);
+    const predColor = prediction.ready ? crowdColor(prediction.closed ? 'Closed' : forecaster.level(prediction.raw)) : getColors().primary;
 
     hourlyTrafficChart = new Chart(ctx, {
         type: 'bar',
@@ -548,7 +548,7 @@ function updateHourlyTrafficChart(hourlyCount, spanDays = 1) {
                     barPercentage: 0.8
                 },
                 {
-                    label: prediction.ready ? `Forecast next hour: ${prediction.prediction}` : 'Forecast (not enough data)',
+                    label: prediction.ready ? `Forecast next hour: ${prediction.raw.toFixed(1)}` : 'Forecast (not enough data)',
                     data: predictionData,
                     type: 'line',
                     borderColor: predColor,

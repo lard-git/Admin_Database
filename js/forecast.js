@@ -1,3 +1,14 @@
+// forecast.js — next-hour check-in forecast from the gym's own hourly history.
+//
+// Series : check-ins per hour (members + walk-ins).
+// Method : seasonal baseline + level correction, validated by a rolling back-test.
+//   1. Seasonal baseline for the target hour = recency-weighted average of the same hour-of-week in
+//      previous weeks (up to 8), blended with the same hour on recent weekdays/weekends when there are
+//      only a few weeks of history.
+//   2. Level correction: what actually happened over the last ~3 hours vs what the baseline expected
+//      for them (damped ratio) scales the baseline, catching "busier/quieter than usual today".
+//   3. Confidence and the 80% range come from re-running steps 1-2 on the last 4 days (one-step-ahead,
+//      using only data available at the time) and measuring the error.
 
 const HOUR = 3600000, DAY = 24 * HOUR, WEEK = 7 * DAY;
 const floorHour = t => { const d = new Date(t); d.setMinutes(0, 0, 0); return d.getTime(); };
@@ -23,6 +34,10 @@ export class EnhancedForecaster {
         const recent = [...this.counts].filter(([h]) => h > Date.now() - 28 * DAY).map(([, c]) => c).sort((a, b) => a - b);
         const q = p => recent.length ? recent[Math.min(recent.length - 1, Math.floor(p * recent.length))] : 0;
         this.q = { q50: q(0.5), q75: q(0.75), q90: q(0.9) };
+
+        // hours of the day with at least one check-in in the last 8 weeks = the gym's opening hours
+        const since = Date.now() - 56 * DAY;
+        this.openHours = new Set(this.times.filter(t => t >= since).map(t => new Date(t).getHours()));
     }
 
     _get(h) { return this.counts.get(h) || 0; }
@@ -78,6 +93,8 @@ export class EnhancedForecaster {
         if (!this.times.length) return { ready: false, factors: ['no check-in history yet'] };
 
         const T = floorHour(now) + HOUR;
+        if ((now - this.firstT) / WEEK >= 1 && !this.openHours.has(new Date(T).getHours()))
+            return { ready: true, closed: true, raw: 0, prediction: 0, confidence: 0.9, range: [0, 0], factors: ['gym is usually closed at this hour'], trend: 'stable' };
         const f = this._forecast(T, now);
         const errs = this._backtest(now), n = errs.length;
         const mae = n ? errs.reduce((s, x) => s + Math.abs(x.e), 0) / n : 0;
