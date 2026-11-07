@@ -194,4 +194,12 @@
   .table-container th:last-child { background: var(--s2); }
   .table-container td:last-child { background: var(--s1); box-shadow: -10px 0 12px -10px rgba(0,0,0,.45); }
   .table-container tbody tr:hover td:last-child { background: color-mix(in srgb, var(--ac) 6%, var(--s1)); }
+
+  /* ── Offline status ── */
+  .netpill { font: 600 11px/1 var(--font); padding: 6px 11px; border-radius: 999px; border: 1px solid; margin-right: 4px; }
+  .netpill[hidden], .offbar[hidden] { display: none; }
+  .netpill.on  { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+  .netpill.off { color: var(--wn); border-color: color-mix(in srgb, var(--wn) 45%, transparent); background: color-mix(in srgb, var(--wn) 12%, transparent); }
+  .offbar { position: fixed; top: var(--nav-h); left: 0; right: 0; z-index: 90; text-align: center; font-size: 12px; padding: 6px 12px; color: var(--wn); background: color-mix(in srgb, var(--wn) 14%, var(--s1)); border-bottom: 1px solid color-mix(in srgb, var(--wn) 35%, transparent); }
+  body.is-offline { padding-top: calc(var(--nav-h) + 30px); }
 }

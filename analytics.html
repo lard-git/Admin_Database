@@ -116,7 +116,7 @@
     </div>
 
     <script type="module">
-      import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+      import { ref, onValue } from './js/offline.js';
       import { db } from './js/database_init.js';
       onValue(ref(db, 'WeeklyGrowthRate'), s => {
         const pct = s.val()?.pct ?? 0;

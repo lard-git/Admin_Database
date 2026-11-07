@@ -1,7 +1,7 @@
 import { db } from './database_init.js';
 import { EnhancedForecaster } from './forecast.js';
 import { withLiveMembership } from './membership.js';
-import { ref, get, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { ref, get, onValue } from './offline.js';
 
 const timeRange = document.getElementById('timeRange');
 const rangeMonth = document.getElementById('rangeMonth');

@@ -1,5 +1,5 @@
 import { db } from './database_init.js';
-import { ref, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { ref, get, update, remove, onValue } from './offline.js';
 import { liveRemainingDays, localDateKey, parseDate } from './membership.js';
 
 const customersRef = ref(db, "Customers");

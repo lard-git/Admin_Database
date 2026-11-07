@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Data Injector</title>
+<style>
+  :root { --bg:#0d0d14; --s1:#14141d; --s2:#1c1c28; --bd:#2a2a3a; --tx:#f1f1f7; --mu:#a2a2b8; --ac:#b78cff; --ok:#3ddc84; --bad:#ff6b81; --wn:#f5c26b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--tx); font:14px/1.5 Inter,"Segoe UI",system-ui,sans-serif; padding:32px 16px; }
+  main { max-width:820px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 4px; } p.sub { color:var(--mu); margin:0 0 24px; }
+  section { background:var(--s1); border:1px solid var(--bd); border-radius:12px; padding:20px; margin-bottom:16px; }
+  h2 { font-size:15px; margin:0 0 14px; color:var(--ac); }
+  label { display:block; color:var(--mu); font-size:12px; margin-bottom:6px; }
+  input, select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--bd); background:var(--s2); color:var(--tx); font:inherit; color-scheme:dark; }
+  input:focus, select:focus { outline:none; border-color:var(--ac); }
+  input[type=checkbox] { width:auto; margin-right:8px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; align-items:end; } .row > div { flex:1; min-width:170px; }
+  button { padding:10px 16px; border-radius:8px; border:1px solid var(--ac); background:var(--ac); color:#14081f; font:600 14px inherit; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--tx); border-color:var(--bd); }
+  button.small { padding:4px 10px; font-size:12px; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin-top:6px; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--bd); } th { color:var(--mu); font-weight:500; }
+  .note { color:var(--mu); font-size:12px; margin:8px 0 0; }
+  #log { max-height:200px; overflow:auto; font:12px/1.7 ui-monospace,Consolas,monospace; color:var(--mu); background:var(--s2); border:1px solid var(--bd); border-radius:10px; padding:10px 12px; }
+  .good { color:var(--ok); } .err { color:var(--bad); } .warn { color:var(--wn); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Test Data Injector</h1>
+  <p class="sub">Adds check-ins and check-outs at any date and time, in the same format the Occupancy page writes. Times are in this computer's local time. This writes to the live database.</p>
+
+  <section>
+    <h2>Member visit</h2>
+    <div class="row">
+      <div><label for="mSearch">Find member</label><input id="mSearch" placeholder="Name or UID" autocomplete="off"></div>
+      <div><label for="mSel">Member</label><select id="mSel"></select></div>
+    </div>
+    <div class="row">
+      <div><label for="mIn">Check in</label><input type="datetime-local" id="mIn"></div>
+      <div><label for="mOut">Check out (optional)</label><input type="datetime-local" id="mOut"></div>
+    </div>
+    <div class="row">
+      <button id="addVisit">Add visit</button>
+      <button id="closeVisit" class="ghost">Check out the open visit</button>
+    </div>
+    <p class="note">"Add visit" saves a check-in, plus the check-out if you fill it in. Leave check-out empty to leave the member in the gym. "Check out the open visit" closes a member who is currently checked in, using the check-out time above.</p>
+    <table id="hist"></table>
+  </section>
+
+  <section>
+    <h2>Walk-ins</h2>
+    <div class="row">
+      <div><label for="wIn">Check in</label><input type="datetime-local" id="wIn"></div>
+      <div><label for="wOut">Check out (optional)</label><input type="datetime-local" id="wOut"></div>
+    </div>
+    <div class="row">
+      <div><label for="wCount">How many</label><input type="number" id="wCount" min="1" max="50" value="1"></div>
+      <div><label for="wGap">Minutes between each</label><input type="number" id="wGap" min="0" value="0"></div>
+      <div><label for="wPay">Payment each (₱)</label><input type="number" id="wPay" min="0" value="40"></div>
+    </div>
+    <label style="display:flex;align-items:center"><input type="checkbox" id="wTest" checked> Tag as test (adds TEST to the key so the Cleanup tool can delete them)</label>
+    <div class="row" style="margin-top:12px"><button id="addWalkin">Create walk-ins</button></div>
+    <h2 style="margin-top:18px">Walk-ins still in the gym</h2>
+    <p class="note" style="margin:0 0 6px">Uses the check-out time above.</p>
+    <table id="active"></table>
+  </section>
+
+  <section>
+    <h2>Log</h2>
+    <div id="log"></div>
+  </section>
+</main>
+
+<script>
+const DB = 'https://gym-database-f4b61-default-rtdb.asia-southeast1.firebasedatabase.app';
+const $ = id => document.getElementById(id);
+const enc = encodeURIComponent;
+let customers = {};
+
+async function api(path, opts) {
+  const r = await fetch(`${DB}/${path}`, opts);
+  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  return r.json();
+}
+const patch = (path, body) => api(path, { method: 'PATCH', body: JSON.stringify(body) });
+const log = (msg, cls = '') => { const d = document.createElement('div'); d.className = cls; d.textContent = new Date().toLocaleTimeString() + '  ' + msg; $('log').prepend(d); };
+const toIso = v => { const d = new Date(v); return v && !isNaN(d) ? d.toISOString() : null; };
+const dayOf = s => s.split('T')[0];                       // same UTC date the app itself uses
+const minsBetween = (a, b) => Math.round((new Date(b) - new Date(a)) / 60000);
+const normHist = h => (Array.isArray(h) ? h : Object.values(h || {})).filter(Boolean);
+const fmt = s => s ? new Date(s).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—';
+const isMember = k => !k.startsWith('_') && !k.startsWith('WALKIN_');
+const nameOf = (k, c) => `${c.personal_info?.firstname || ''} ${c.personal_info?.lastname || ''}`.trim() || k;
+
+async function run(btn, fn) {
+  btn.disabled = true;
+  try { await fn(); await load(); } catch (e) { log('Failed: ' + e.message, 'err'); }
+  btn.disabled = false;
+}
+
+async function load() {
+  customers = await api('Customers.json') || {};
+  renderMembers(); renderHistory(); renderActive();
+}
+
+function renderMembers() {
+  const q = $('mSearch').value.trim().toLowerCase(), sel = $('mSel'), keep = sel.value;
+  sel.replaceChildren();
+  Object.entries(customers).filter(([k]) => isMember(k)).map(([k, c]) => [k, nameOf(k, c), c])
+    .filter(([k, n]) => !q || n.toLowerCase().includes(q) || k.includes(q)).sort((a, b) => a[1].localeCompare(b[1]))
+    .forEach(([k, n, c]) => {
+      const o = document.createElement('option'); o.value = k;
+      o.textContent = `${n} (${k})${c.gym_data?.is_checked_in ? ' · in gym' : ''}`; sel.appendChild(o);
+    });
+  if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+}
+
+function renderHistory() {
+  const t = $('hist'); t.replaceChildren();
+  const m = customers[$('mSel').value]; if (!m) return;
+  const hist = normHist(m.attendance_history).sort((a, b) => new Date(b.checkin) - new Date(a.checkin)).slice(0, 15);
+  const head = t.insertRow(); ['Check in', 'Check out', 'Minutes', ''].forEach(h => head.insertCell().outerHTML = `<th>${h}</th>`);
+  if (!hist.length) { t.insertRow().insertCell().textContent = 'No visits yet.'; return; }
+  hist.forEach(v => {
+    const r = t.insertRow();
+    r.insertCell().textContent = fmt(v.checkin); r.insertCell().textContent = fmt(v.checkout); r.insertCell().textContent = v.time_spent ?? '—';
+    const b = document.createElement('button'); b.className = 'ghost small'; b.textContent = 'Delete';
+    b.onclick = () => run(b, () => deleteVisit(v.checkin)); r.insertCell().appendChild(b);
+  });
+}
+
+function renderActive() {
+  const t = $('active'); t.replaceChildren();
+  const rows = Object.entries(customers).filter(([k, c]) => k.startsWith('WALKIN_') && c.gym_data?.is_checked_in === true);
+  if (!rows.length) { t.insertRow().insertCell().textContent = 'None.'; return; }
+  rows.forEach(([k, c]) => {
+    const r = t.insertRow();
+    r.insertCell().textContent = c.personal_info?.lastname || k; r.insertCell().textContent = fmt(c.gym_data.last_checkin);
+    const b = document.createElement('button'); b.className = 'small'; b.textContent = 'Check out';
+    b.onclick = () => run(b, () => checkoutWalkin(k)); r.insertCell().appendChild(b);
+  });
+}
+
+// ── members ──
+async function addVisit() {
+  const key = $('mSel').value, inI = toIso($('mIn').value), outI = toIso($('mOut').value);
+  if (!key) throw new Error('Pick a member.');
+  if (!inI) throw new Error('Enter a check-in time.');
+  if (outI && new Date(outI) <= new Date(inI)) throw new Error('Check-out must be after check-in.');
+  const m = await api(`Customers/${enc(key)}.json`), g = m.gym_data || {};
+  const hist = normHist(m.attendance_history), t = outI ? minsBetween(inI, outI) : null;
+  hist.push({ checkin: inI, checkout: outI, time_spent: t, date: dayOf(inI) });
+  hist.sort((a, b) => new Date(b.checkin) - new Date(a.checkin));
+  const body = { attendance_history: hist };
+  if (outI) { body['gym_data/total_visits'] = (g.total_visits || 0) + 1; body['gym_data/total_time_spent'] = (g.total_time_spent || 0) + t; }
+  if (hist[0].checkin === inI) { body['gym_data/last_checkin'] = inI; body['gym_data/last_checkout'] = outI; body['gym_data/is_checked_in'] = !outI; }
+  else if (!outI) log('That open visit is not the newest one, so the member is not marked as in the gym.', 'warn');
+  await patch(`Customers/${enc(key)}.json`, body);
+  log(`${nameOf(key, m)}: ${fmt(inI)} → ${outI ? fmt(outI) : 'still in gym'}`, 'good');
+}
+
+async function closeVisit() {
+  const key = $('mSel').value, outI = toIso($('mOut').value);
+  if (!key) throw new Error('Pick a member.');
+  if (!outI) throw new Error('Enter a check-out time.');
+  const m = await api(`Customers/${enc(key)}.json`), g = m.gym_data || {};
+  const hist = normHist(m.attendance_history);
+  const open = hist[0] && !hist[0].checkout ? hist[0] : hist.find(v => !v.checkout);
+  if (!open) throw new Error('This member has no open visit.');
+  const t = minsBetween(open.checkin, outI);
+  if (t <= 0) throw new Error('Check-out must be after the check-in at ' + fmt(open.checkin) + '.');
+  open.checkout = outI; open.time_spent = t;
+  await patch(`Customers/${enc(key)}.json`, {
+    attendance_history: hist, 'gym_data/is_checked_in': false, 'gym_data/last_checkout': outI,
+    'gym_data/total_time_spent': (g.total_time_spent || 0) + t, 'gym_data/total_visits': (g.total_visits || 0) + 1
+  });
+  log(`${nameOf(key, m)} checked out at ${fmt(outI)} (${t} min)`, 'good');
+}
+
+async function deleteVisit(checkin) {
+  const key = $('mSel').value;
+  if (!confirm('Delete this visit?')) return;
+  const m = await api(`Customers/${enc(key)}.json`), g = m.gym_data || {};
+  const hist = normHist(m.attendance_history), i = hist.findIndex(v => v.checkin === checkin);
+  if (i < 0) throw new Error('Visit not found.');
+  const [v] = hist.splice(i, 1), body = { attendance_history: hist };
+  if (v.checkout) { body['gym_data/total_visits'] = Math.max(0, (g.total_visits || 0) - 1); body['gym_data/total_time_spent'] = Math.max(0, (g.total_time_spent || 0) - (v.time_spent || 0)); }
+  await patch(`Customers/${enc(key)}.json`, body);
+  log(`Deleted visit ${fmt(checkin)} for ${nameOf(key, m)}`, 'warn');
+}
+
+// ── walk-ins ──
+async function addWalkins() {
+  const inI = toIso($('wIn').value), outI = toIso($('wOut').value);
+  const n = Math.min(50, Math.max(1, parseInt($('wCount').value) || 1)), gap = (parseInt($('wGap').value) || 0) * 60000;
+  const pay = parseInt($('wPay').value); if (!inI) throw new Error('Enter a check-in time.');
+  if (outI && new Date(outI) <= new Date(inI)) throw new Error('Check-out must be after check-in.');
+  const body = {};
+  for (let i = 0; i < n; i++) {
+    const a = new Date(new Date(inI).getTime() + i * gap).toISOString();
+    const b = outI ? new Date(new Date(outI).getTime() + i * gap).toISOString() : null;
+    const ts = new Date(a).getTime() + i;                          // +i keeps keys unique when the gap is 0
+    const key = `WALKIN_${dayOf(a)}_${$('wTest').checked ? 'TEST_' : ''}${ts}`, id = String(ts).slice(-4), t = b ? minsBetween(a, b) : 0;
+    body[key] = {
+      personal_info: { firstname: 'WALK-IN', lastname: `#${id}`, uid: key, type: 'daypass' },
+      gym_data: { is_checked_in: !b, last_checkin: a, last_checkout: b, total_visits: 1, total_time_spent: t, uid: key, ...(b ? { time_spent: t } : {}) },
+      membership: { status: b ? 'completed' : 'active', remaining_days: 1, start_date: dayOf(a), end_date: dayOf(a) },
+      attendance_history: [{ checkin: a, checkout: b, time_spent: b ? t : null, date: dayOf(a) }],
+      payment: isNaN(pay) ? 40 : pay
+    };
+  }
+  await patch('Customers.json', body);
+  log(`Created ${n} walk-in(s) from ${fmt(inI)}${outI ? ' to ' + fmt(outI) : ' (still in gym)'}`, 'good');
+}
+
+async function checkoutWalkin(key) {
+  const outI = toIso($('wOut').value); if (!outI) throw new Error('Enter a check-out time above first.');
+  const w = await api(`Customers/${enc(key)}.json`), t = minsBetween(w.gym_data.last_checkin, outI);
+  if (t <= 0) throw new Error('Check-out must be after the check-in.');
+  const hist = normHist(w.attendance_history);
+  if (hist[0] && !hist[0].checkout) { hist[0].checkout = outI; hist[0].time_spent = t; }
+  await patch(`Customers/${enc(key)}.json`, {
+    'gym_data/is_checked_in': false, 'gym_data/last_checkout': outI, 'gym_data/time_spent': t,
+    'gym_data/total_time_spent': t, 'membership/status': 'completed', attendance_history: hist
+  });
+  log(`${w.personal_info?.lastname || key} checked out at ${fmt(outI)} (${t} min)`, 'good');
+}
+
+$('mSearch').oninput = () => { renderMembers(); renderHistory(); };
+$('mSel').onchange = renderHistory;
+$('addVisit').onclick = e => run(e.target, addVisit);
+$('closeVisit').onclick = e => run(e.target, closeVisit);
+$('addWalkin').onclick = e => run(e.target, addWalkins);
+load().catch(e => log('Could not load the database: ' + e.message, 'err'));
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { db } from './database_init.js';
-import { ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { ref, set, get, update, onValue } from './offline.js';
 import { withLiveMembership } from './membership.js';
 
 const memberUidInput = document.getElementById('memberUidInput');

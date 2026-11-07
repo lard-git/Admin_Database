@@ -1,4 +1,6 @@
 // ui.js — themes, top navigation (icons expand on hover / stay open on active page), sign-in, ripple.
+import { netState } from './offline.js';
+
 const THEME_KEY = 'gym_theme';
 const THEMES = [
   { id: 'dark',      name: 'Dark',      p: ['#0d0d14', '#1c1c28', '#b78cff'] },
@@ -6,7 +8,7 @@ const THEMES = [
   { id: 'amoled',    name: 'AMOLED',    p: ['#000000', '#141414', '#ffffff'] },
   { id: 'cyberpunk', name: 'Cyberpunk', p: ['#05090c', '#101c23', '#1affa8'] },
   { id: 'ink',       name: 'Ink',       p: ['#f6f1e4', '#efe8d6', '#c4281e'] },
-  { id: 'arcade',    name: 'candy',    p: ['#0b0b1a', '#1a1a3a', '#ff1f7a'] },
+  { id: 'arcade',    name: 'Arcade',    p: ['#0b0b1a', '#1a1a3a', '#ff1f7a'] },
   { id: 'gold',      name: 'Gold',      p: ['#121212', '#282828', '#ebc069'] },
 ];
 const NAV = [
@@ -47,12 +49,34 @@ document.addEventListener('DOMContentLoaded', () => {
       `<a class="navbtn${page === n.href ? ' active' : ''}" href="${n.href}" aria-label="${n.label}" title="${n.label}">${svg(n.icon)}<span>${n.label}</span></a>`).join('')}
     </nav>
     <div class="navgap"></div>
+    <span class="netpill" id="netPill" hidden></span>
     <button class="iconbtn" id="themeBtn" aria-label="Change theme" title="Theme">${svg(ICON_THEME)}</button>
     <button class="signin" id="signInBtn">${svg(ICON_LOGIN)}<b>Sign In</b></button>
     <div class="themepop" id="themePop">${THEMES.map(t =>
       `<button class="tcard" data-id="${t.id}"><div class="tprev" style="background:${t.p[0]}"><i style="background:${t.p[1]}"></i><i style="background:${t.p[2]}"></i><i style="background:${t.p[2]};opacity:.55"></i><i style="background:${t.p[1]}"></i></div><b>${t.name}</b></button>`).join('')}
     </div>`;
   document.body.prepend(nav);
+
+  // ── offline status: pill in the bar + banner under it ──
+  const pill = nav.querySelector('#netPill');
+  const bar = document.createElement('div');
+  bar.className = 'offbar'; bar.hidden = true;
+  document.body.appendChild(bar);
+  const stamp = t => t ? new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'earlier';
+  const renderNet = s => {
+    const off = s.connected === false || s.usingSaved;
+    pill.hidden = s.connected === null && !s.usingSaved;
+    pill.className = 'netpill ' + (off ? 'off' : 'on');
+    pill.textContent = off ? 'Offline' : 'Online';
+    document.body.classList.toggle('is-offline', off);
+    bar.hidden = !off;
+    bar.textContent = `Offline · showing the data saved at ${stamp(s.lastSync)}. Changes can't be saved until the connection is back.`;
+  };
+  window.addEventListener('gym-net', e => renderNet(e.detail));
+  renderNet(netState);
+
+  // lets the pages open with no internet (files are saved the first time they load online)
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
   const pop = nav.querySelector('#themePop');
   nav.querySelector('#themeBtn').addEventListener('click', e => { e.stopPropagation(); pop.classList.toggle('open'); });
