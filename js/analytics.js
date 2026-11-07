@@ -90,6 +90,15 @@ function init() {
     rangeMonth.max = toInputDate(new Date()).slice(0, 7);
     setInterval(updateDisplay, 60000);
 
+    [['fcHourly', 'hourly'], ['fcDaily', 'daily']].forEach(([id, mode]) => {
+        document.getElementById(id)?.addEventListener('click', () => {
+            forecastMode = mode;
+            document.getElementById('fcHourly').classList.toggle('on', mode === 'hourly');
+            document.getElementById('fcDaily').classList.toggle('on', mode === 'daily');
+            updatePredictionDisplay();
+        });
+    });
+
     // Re-render charts when theme toggles
     const themeObserver = new MutationObserver(() => {
         if (hourlyTrafficChart || dailyTrafficChart || membershipActivityChart || monthlyRevenueChart) {
@@ -135,11 +144,18 @@ function crowdColor(level) {
     return level === 'Very Busy' ? c.highlight : level === 'Busy' ? c.primary : c.secondary;
 }
 
+let forecastMode = 'hourly';            // 'hourly' | 'daily'
+
 function updatePredictionDisplay() {
-    const p = forecaster.getPrediction();
+    const daily = forecastMode === 'daily';
+    const p = daily ? forecaster.predictDaily() : forecaster.getPrediction();
+    const title = document.getElementById('fcTitle');
+    if (title) title.textContent = daily
+        ? `Tomorrow's Forecast${p.target ? ' (' + new Date(p.target).toLocaleDateString(undefined, { weekday: 'short' }) + ')' : ''}`
+        : 'Next-Hour Forecast';
     if (!p.ready) { aiNextHour.textContent = '—'; aiConfidence.textContent = p.factors[0]; return; }
 
-    const level = p.closed ? 'Closed' : forecaster.level(p.raw), predColor = crowdColor(level);
+    const level = p.closed ? 'Closed' : (daily ? forecaster.levelDaily(p.raw) : forecaster.level(p.raw)), predColor = crowdColor(level);
     aiNextHour.textContent = p.raw < 10 ? p.raw.toFixed(1) : Math.round(p.raw);   // 0.4 expected arrivals is more useful than "0"
     aiNextHour.style.color = predColor;
 
@@ -216,13 +232,18 @@ async function loadAnalyticsData() {
 
         const members = [];
         const visitTimes = [];   // every check-in (members + walk-ins), whole history, for the forecaster
+        const walkins = [];      // walk-in check-ins, counted in the charts and summary cards
 
         snapshot.forEach(child => {
             const data = child.val();
             if (child.key.startsWith('_')) return;
             if (child.key.startsWith('WALKIN_')) {
                 const t = Date.parse(data.gym_data?.last_checkin || data.timestamp);
-                if (!isNaN(t)) visitTimes.push(t);
+                if (!isNaN(t)) {
+                    visitTimes.push(t);
+                    const h = Object.values(data.attendance_history || {})[0];
+                    walkins.push({ checkin: t, time_spent: data.gym_data?.time_spent ?? h?.time_spent });
+                }
                 return;
             }
             const member = normalizeMemberData(child.key, data);
@@ -231,7 +252,7 @@ async function loadAnalyticsData() {
         });
 
         forecaster.fit(visitTimes);
-        processAnalytics(members, range);
+        processAnalytics(members, range, walkins);
         updatePredictionDisplay();
         calculateWeeklyGrowth(members);
         const revData = await buildMonthlyRevenueData();
@@ -384,7 +405,9 @@ function updateMonthlyRevenueChart({ labels, memberRevenue, walkinRevenue }) {
     });
 }
 
-function processAnalytics(members, { start: startDate, end: endDate, days }) {
+let walkinByDate = {};   // walk-ins per day inside the range, shown in the daily trend tooltip
+
+function processAnalytics(members, { start: startDate, end: endDate, days }, walkins = []) {
 
     const allVisits = [];
     const memberStats = {};
@@ -413,13 +436,26 @@ function processAnalytics(members, { start: startDate, end: endDate, days }) {
                 if (visitDate < startDate || visitDate > endDate) return;
                 hourlyCount[visitDate.getHours()]++;
                 const day = visitDate.getDay();
-                const dateStr = visitDate.toISOString().split('T')[0];
+                const dateStr = toInputDate(visitDate);   // local day (toISOString is UTC and puts early-morning visits on the previous day)
                 dailyCount[day]++;
                 dateCount[dateStr] = (dateCount[dateStr] || 0) + 1;
                 if (visit.time_spent) stayTimes.push(visit.time_spent);
                 allVisits.push({ member, visit, hour: visitDate.getHours(), day, date: dateStr });
             } catch (e) {}
         });
+    });
+
+    walkinByDate = {};
+    walkins.forEach(w => {
+        const d = new Date(w.checkin);
+        firstVisit = Math.min(firstVisit, w.checkin);
+        if (d < startDate || d > endDate) return;
+        const dateStr = toInputDate(d);
+        hourlyCount[d.getHours()]++;
+        dailyCount[d.getDay()]++;
+        dateCount[dateStr] = (dateCount[dateStr] || 0) + 1;
+        walkinByDate[dateStr] = (walkinByDate[dateStr] || 0) + 1;
+        if (w.time_spent) stayTimes.push(w.time_spent);
     });
 
     // days of data actually inside the range (a gym with 10 days of history shouldn't divide by 30)
@@ -432,7 +468,8 @@ function processAnalytics(members, { start: startDate, end: endDate, days }) {
 
 function updateSummaryCards(visits, dateCount, stayTimes, days, hourlyCount, dailyCount) {
     const uniqueDates = Object.keys(dateCount).length;
-    avgDailyVisitors.textContent = uniqueDates > 0 ? (visits.length / Math.min(uniqueDates, days)).toFixed(1) : '0';
+    const totalVisits = Object.values(dateCount).reduce((a, b) => a + b, 0);   // members + walk-ins
+    avgDailyVisitors.textContent = uniqueDates > 0 ? (totalVisits / Math.min(uniqueDates, days)).toFixed(1) : '0';
 
     let maxHour = 0, maxCount = 0;
     for (let i = 0; i < 24; i++) { if (hourlyCount[i] > maxCount) { maxCount = hourlyCount[i]; maxHour = i; } }
@@ -645,7 +682,10 @@ function updateDailyTrafficChart(dateCount) {
                     borderWidth: 1,
                     cornerRadius: 8,
                     displayColors: false,
-                    callbacks: { label: ctx => `${ctx.parsed.y} visitors` }
+                    callbacks: {
+                        label: ctx => `${ctx.parsed.y} visitors`,
+                        afterLabel: ctx => { const w = walkinByDate[dates[ctx.dataIndex]] || 0; return w ? `${ctx.parsed.y - w} members + ${w} walk-in${w === 1 ? '' : 's'}` : undefined; }
+                    }
                 }
             },
             scales: {

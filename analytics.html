@@ -9,6 +9,11 @@
     <script type="module" src="js/ui.js"></script>
     <link rel="stylesheet" href="resources/analytics.css">
     <link rel="stylesheet" href="resources/theme.css">
+    <style>
+      .fc-toggle { display:inline-flex; margin-bottom:8px; border:1px solid var(--bd); border-radius:999px; overflow:hidden; }
+      .fc-toggle button { background:transparent; color:var(--mu); border:0; padding:3px 12px; font:inherit; font-size:11px; cursor:pointer; }
+      .fc-toggle button.on { background:var(--ac); color:var(--bg); }
+    </style>
   <script>(function(){var t=localStorage.getItem("gym_theme");document.documentElement.dataset.theme=["dark","light","amoled","cyberpunk","ink","arcade","gold"].indexOf(t)>-1?t:"dark"})()</script>
 </head>
 <body>
@@ -36,7 +41,8 @@
 
         <div class="summary-cards">
             <div class="summary-card ai">
-                 <h3>Next-Hour Forecast</h3>
+                 <h3 id="fcTitle">Next-Hour Forecast</h3>
+                 <div class="fc-toggle" role="group" aria-label="Forecast range"><button type="button" id="fcHourly" class="on">Hourly</button><button type="button" id="fcDaily">Daily</button></div>
                  <span id="aiNextHour" style="font-size:32px;">—</span>
             <small id="aiConfidence" style="color:var(--fa);">confidence —</small>
             </div>

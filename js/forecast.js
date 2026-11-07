@@ -14,6 +14,8 @@ const HOUR = 3600000, DAY = 24 * HOUR, WEEK = 7 * DAY;
 const floorHour = t => { const d = new Date(t); d.setMinutes(0, 0, 0); return d.getTime(); };
 const isWeekend = t => { const g = new Date(t).getDay(); return g === 0 || g === 6; };
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+const floorDay = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+const addDays = (t, n) => { const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); };
 const wavg = (arr, decay) => {            // arr[0] is the most recent sample
     let s = 0, w = 0;
     arr.forEach((v, i) => { const k = Math.pow(decay, i); s += v * k; w += k; });
@@ -117,6 +119,89 @@ export class EnhancedForecaster {
             ready: true, raw: f.value, prediction: Math.round(f.value), confidence, range, factors,
             trend: f.ratio > 1.15 ? 'rising' : f.ratio < 0.85 ? 'falling' : 'stable'
         };
+    }
+
+    // ── Daily forecast: the same method as the hourly one, on whole days. Forecasts tomorrow's total check-ins. ──
+    _days() {                              // check-ins per calendar day (built once per fit)
+        if (this._dcFor === this.times) return this._dc;
+        const m = new Map();
+        this.times.forEach(t => { const d = floorDay(t); m.set(d, (m.get(d) || 0) + 1); });
+        this._dc = m; this._dcFor = this.times;
+        return m;
+    }
+    _dget(d) { return this._days().get(d) || 0; }
+
+    _dbaseline(D) {                        // expected check-ins on day D, from history only
+        const first = floorDay(this.firstT), weekly = [], daily = [];
+        for (let k = 1; k <= 8; k++) { const d = addDays(D, -7 * k); if (d < first) break; weekly.push(this._dget(d)); }
+        for (let k = 1; k <= 28 && daily.length < 10; k++) {
+            const d = addDays(D, -k);
+            if (d < first) break;
+            if (k % 7 !== 0 && isWeekend(d) === isWeekend(D)) daily.push(this._dget(d));
+        }
+        const nW = weekly.length;
+        const wWeekly = nW >= 4 ? 1 : nW >= 2 ? 0.7 : nW === 1 ? 0.4 : 0;   // days differ a lot (Sat vs Sun), so lean harder on the same weekday
+        const wk = wavg(weekly, 0.8), dy = wavg(daily, 0.9);
+        const exp = nW && daily.length ? wWeekly * wk + (1 - wWeekly) * dy : (nW ? wk : dy);
+        return { exp, nW };
+    }
+
+    _dforecast(D) {                        // forecast for day D using only complete days up to D-2 (D-1 is today, still running)
+        const first = floorDay(this.firstT), base = this._dbaseline(D);
+        let actual = 0, expected = 0;
+        for (let i = 2; i <= 4; i++) {
+            const d = addDays(D, -i);
+            if (d < first) break;
+            actual += this._dget(d);
+            expected += this._dbaseline(d).exp;
+        }
+        const ratio = expected >= 5 ? clamp((actual + 5) / (expected + 5), 0.6, 1.6) : 1;
+        return { value: Math.max(0, base.exp * (1 + 0.3 * (ratio - 1))), ratio, nW: base.nW };
+    }
+
+    _dbacktest(today) {                    // one-step-ahead errors for each of the last 14 completed days
+        const errs = [], first = floorDay(this.firstT);
+        for (let j = 1; j <= 14; j++) {
+            const D = addDays(today, -j);
+            if (addDays(D, -7) < first) break;
+            const f = this._dforecast(D).value, a = this._dget(D);
+            if (f > 0.05 || a > 0) errs.push({ e: a - f, a });
+        }
+        return errs;
+    }
+
+    predictDaily(now = Date.now()) {
+        if (!this.times.length) return { ready: false, factors: ['no check-in history yet'] };
+        const today = floorDay(now), T = addDays(today, 1), weeks = (now - this.firstT) / WEEK;
+        const since = now - 56 * DAY, openDays = new Set(this.times.filter(t => t >= since).map(t => new Date(t).getDay()));
+        if (weeks >= 1 && !openDays.has(new Date(T).getDay()))
+            return { ready: true, closed: true, target: T, raw: 0, prediction: 0, confidence: 0.9, range: [0, 0], factors: ['gym is usually closed on this day'], trend: 'stable' };
+
+        const f = this._dforecast(T), errs = this._dbacktest(today), n = errs.length;
+        const mae = n ? errs.reduce((s, x) => s + Math.abs(x.e), 0) / n : 0;
+        const rmse = n ? Math.sqrt(errs.reduce((s, x) => s + x.e * x.e, 0) / n) : 3;
+        const meanActual = n ? Math.max(1, errs.reduce((s, x) => s + x.a, 0) / n) : 1;
+
+        let confidence = n >= 7 ? 0.92 - 0.55 * (mae / meanActual) : 0.4;
+        if (weeks < 1) confidence = Math.min(confidence, 0.35);
+        else if (weeks < 2) confidence = Math.min(confidence, 0.55);
+        confidence = clamp(confidence, 0.2, 0.92);
+
+        const sigma = Math.max(1, n >= 7 ? rmse : 3);
+        const range = [Math.max(0, Math.round(f.value - 1.28 * sigma)), Math.round(f.value + 1.28 * sigma)];
+        const factors = [f.nW >= 2 ? `weekly pattern (${f.nW} wks)` : weeks < 1 ? 'less than a week of data' : 'daily pattern'];
+        factors.push(f.ratio > 1.15 ? 'busier than usual lately' : f.ratio < 0.85 ? 'quieter than usual lately' : 'on typical pace');
+        return {
+            ready: true, target: T, raw: f.value, prediction: Math.round(f.value), confidence, range, factors,
+            trend: f.ratio > 1.15 ? 'rising' : f.ratio < 0.85 ? 'falling' : 'stable'
+        };
+    }
+
+    levelDaily(v) {                        // Quiet / Moderate / Busy / Very Busy for a day total, vs the last 8 weeks of open days
+        const c = [...this._days()].filter(([d, n]) => d > Date.now() - 56 * DAY && n > 0).map(([, n]) => n).sort((a, b) => a - b);
+        const q = p => c.length ? c[Math.min(c.length - 1, Math.floor(p * c.length))] : 0;
+        const q50 = q(0.5), q75 = q(0.75), q90 = q(0.9);
+        return q90 > 0 && v >= q90 ? 'Very Busy' : q75 > 0 && v >= q75 ? 'Busy' : q50 > 0 && v >= q50 ? 'Moderate' : 'Quiet';
     }
 
     getPrediction() { return this.predict(); }
