@@ -46,6 +46,7 @@
     <div class="row">
       <button id="addVisit">Add visit</button>
       <button id="closeVisit" class="ghost">Check out the open visit</button>
+      <button id="recalc" class="ghost">Recalculate totals</button>
     </div>
     <p class="note">"Add visit" saves a check-in, plus the check-out if you fill it in. Leave check-out empty to leave the member in the gym. "Check out the open visit" closes a member who is currently checked in, using the check-out time above.</p>
     <table id="hist"></table>
@@ -161,6 +162,7 @@ async function addVisit() {
   else if (!outI) log('That open visit is not the newest one, so the member is not marked as in the gym.', 'warn');
   await patch(`Customers/${enc(key)}.json`, body);
   log(`${nameOf(key, m)}: ${fmt(inI)} → ${outI ? fmt(outI) : 'still in gym'}`, 'good');
+  await verify(key);
 }
 
 async function closeVisit() {
@@ -179,6 +181,7 @@ async function closeVisit() {
     'gym_data/total_time_spent': (g.total_time_spent || 0) + t, 'gym_data/total_visits': (g.total_visits || 0) + 1
   });
   log(`${nameOf(key, m)} checked out at ${fmt(outI)} (${t} min)`, 'good');
+  await verify(key);
 }
 
 async function deleteVisit(checkin) {
@@ -191,6 +194,23 @@ async function deleteVisit(checkin) {
   if (v.checkout) { body['gym_data/total_visits'] = Math.max(0, (g.total_visits || 0) - 1); body['gym_data/total_time_spent'] = Math.max(0, (g.total_time_spent || 0) - (v.time_spent || 0)); }
   await patch(`Customers/${enc(key)}.json`, body);
   log(`Deleted visit ${fmt(checkin)} for ${nameOf(key, m)}`, 'warn');
+}
+
+// reads the saved totals back so you can see exactly what the database holds
+async function verify(key) {
+  const g = await api(`Customers/${enc(key)}/gym_data.json`) || {};
+  log(`Saved totals: ${g.total_visits ?? 'none'} visits, ${g.total_time_spent ?? 'none'} min`, g.total_time_spent ? '' : 'warn');
+}
+
+// rebuilds total_visits and total_time_spent from the member's visit list
+async function recalc() {
+  const key = $('mSel').value; if (!key) throw new Error('Pick a member.');
+  const m = await api(`Customers/${enc(key)}.json`);
+  const done = normHist(m.attendance_history).filter(v => v.checkin && v.checkout);
+  const mins = done.reduce((s, v) => s + (v.time_spent ?? Math.max(0, minsBetween(v.checkin, v.checkout))), 0);
+  if (!confirm(`Set ${nameOf(key, m)} to ${done.length} visit(s) and ${mins} minutes, counted from the visit list (the app keeps at most 100 visits)?`)) return;
+  await patch(`Customers/${enc(key)}.json`, { 'gym_data/total_visits': done.length, 'gym_data/total_time_spent': mins });
+  log(`${nameOf(key, m)}: totals set to ${done.length} visit(s), ${mins} min`, 'good');
 }
 
 // ── walk-ins ──
@@ -234,6 +254,7 @@ $('mSearch').oninput = () => { renderMembers(); renderHistory(); };
 $('mSel').onchange = renderHistory;
 $('addVisit').onclick = e => run(e.target, addVisit);
 $('closeVisit').onclick = e => run(e.target, closeVisit);
+$('recalc').onclick = e => run(e.target, recalc);
 $('addWalkin').onclick = e => run(e.target, addWalkins);
 load().catch(e => log('Could not load the database: ' + e.message, 'err'));
 </script>
