@@ -235,11 +235,12 @@ tbody tr:last-child td { border-bottom: none; }
 
 /* ── Action Buttons ── */
 .action-buttons {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;   /* Edit | Extend on top, Delete underneath */
     gap: 6px;
-    min-width: 108px;
+    min-width: 156px;
 }
+.action-buttons .btn-delete { grid-column: 1 / -1; }
 
 .btn {
     padding: 6px 14px;
@@ -668,3 +669,13 @@ tbody tr:last-child td { border-bottom: none; }
 
 @media (max-width: 900px) { .name { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .name { grid-template-columns: 1fr; } }
+
+/* The edit window has two modes: Edit shows the personal details, Extend shows only the membership panel */
+#editModal[data-mode="extend"] .name .form-row,
+#editModal[data-mode="extend"] .name > .form-group { display: none; }
+#editModal[data-mode="edit"] .edit-form + .edit-form { display: none; }
+#editModal[data-mode="edit"] .large-modal { max-width: 820px; }
+#editModal[data-mode="extend"] .large-modal { max-width: 900px; }
+.edit-title { margin: 0 0 6px; padding-right: 40px; }
+.edit-title h3 { margin: 0; }
+.edit-title p { margin: 4px 0 0; font-size: 12px; }

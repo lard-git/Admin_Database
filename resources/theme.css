@@ -157,7 +157,7 @@
   .edit-form .payment-section { background: transparent; }
   .ctx-header { color: var(--fa); border-bottom-color: var(--bd); } .ctx-item { color: var(--tx); } .ctx-item:hover { background: var(--s2); }
   .ctx-item.ctx-danger { color: var(--bad); }
-  #authOverlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 9999; background: rgba(0,0,0,.7); backdrop-filter: blur(10px); }
+  #authOverlay { position: fixed; inset: var(--nav-h) 0 0 0; display: flex; align-items: center; justify-content: center; z-index: 95; background: rgba(0,0,0,.7); backdrop-filter: blur(10px); }   /* starts below the top bar and sits under it, so the navigation stays clickable while locked */
   #authBox { background: var(--s1); border: 1px solid var(--bd); border-radius: 16px; padding: 36px 40px; min-width: 320px; text-align: center; box-shadow: var(--glow); }
   #authBox h3 { color: var(--tx); font-size: 20px; margin-bottom: 20px; }
   #authBox input { width: 100%; padding: 12px 14px; margin-bottom: 12px; font-family: inherit; }
@@ -202,4 +202,20 @@
   .netpill.off { color: var(--wn); border-color: color-mix(in srgb, var(--wn) 45%, transparent); background: color-mix(in srgb, var(--wn) 12%, transparent); }
   .offbar { position: fixed; top: var(--nav-h); left: 0; right: 0; z-index: 90; text-align: center; font-size: 12px; padding: 6px 12px; color: var(--wn); background: color-mix(in srgb, var(--wn) 14%, var(--s1)); border-bottom: 1px solid color-mix(in srgb, var(--wn) 35%, transparent); }
   body.is-offline { padding-top: calc(var(--nav-h) + 30px); }
+
+  /* ── Members pagination ── */
+  .table-container { scroll-margin-top: calc(var(--nav-h) + 16px); }
+  .pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+  .pager[hidden] { display: none; }
+  .pager-info { color: var(--mu); font-size: 12px; }
+  .pager-nav { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .pager button { min-width: 34px; height: 34px; padding: 0 12px; border-radius: var(--r-sm); border: 1px solid var(--bd); background: var(--s1); color: var(--tx); font: 600 13px var(--font); cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
+  .pager button:hover:not(:disabled) { border-color: var(--ac); color: var(--ac); }
+  .pager button.active { background: var(--ac); border-color: var(--ac); color: var(--acfg); }
+  .pager button:disabled { opacity: .35; cursor: not-allowed; }
+  .pager .gap { color: var(--fa); padding: 0 2px; }
+
+  /* ── Extend button + edit window title ── */
+  .btn-extend { background: var(--ok-s); color: var(--ok); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
+  .edit-title p { color: var(--fa); }
 }

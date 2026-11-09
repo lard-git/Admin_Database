@@ -20,6 +20,44 @@ const downloadQR = document.getElementById("downloadQR");
 const editModal = document.getElementById("editModal");
 
 let allMembers = [];
+
+// ── pagination: 10 members per page ──
+const PAGE_SIZE = 10;
+let currentPage = 1;
+let lastList = [];                       // whatever list is currently shown (all members, or search results)
+const pager = document.getElementById('pager');
+
+// page buttons to show: first, last and the pages around the current one, with … for gaps
+function pageNumbers(current, total) {
+    const keep = [...new Set([1, total, current - 1, current, current + 1])].filter(n => n >= 1 && n <= total).sort((a, b) => a - b);
+    const out = []; let prev = 0;
+    for (const n of keep) { if (n - prev > 1) out.push('…'); out.push(n); prev = n; }
+    return out;
+}
+
+function renderPager(total, totalPages) {
+    if (!pager) return;
+    if (total <= PAGE_SIZE) { pager.hidden = true; pager.innerHTML = ''; return; }      // one page: nothing to flip through
+    const from = (currentPage - 1) * PAGE_SIZE + 1, to = Math.min(currentPage * PAGE_SIZE, total);
+    pager.hidden = false;
+    pager.innerHTML =
+        `<span class="pager-info">Showing ${from}\u2013${to} of ${total} members</span>` +
+        `<div class="pager-nav">` +
+        `<button data-page="${currentPage - 1}" aria-label="Previous page" ${currentPage === 1 ? 'disabled' : ''}>\u2039 Prev</button>` +
+        pageNumbers(currentPage, totalPages).map(n => n === '…'
+            ? '<span class="gap">…</span>'
+            : `<button data-page="${n}" class="${n === currentPage ? 'active' : ''}" ${n === currentPage ? 'aria-current="page"' : ''}>${n}</button>`).join('') +
+        `<button data-page="${currentPage + 1}" aria-label="Next page" ${currentPage === totalPages ? 'disabled' : ''}>Next \u203a</button>` +
+        `</div>`;
+}
+
+if (pager) pager.addEventListener('click', e => {
+    const b = e.target.closest('button[data-page]');
+    if (!b || b.disabled) return;
+    currentPage = +b.dataset.page;
+    renderMembers(lastList);
+    document.querySelector('.table-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 let memberWalkins = {};
 let currentLargeQR = '';
 let currentEditMember = null;
@@ -317,11 +355,14 @@ function getStatusPriority(member) {
     return 2;
 }
 
-function renderMembers(members) {
+function renderMembers(members, resetPage = false) {
+    lastList = members;
+    if (resetPage) currentPage = 1;          // a new search starts on page 1; live updates, edits and deletes keep your page
     tableBody.innerHTML = "";
 
     if (members.length === 0) {
         emptyState.style.display = 'block';
+        renderPager(0, 0);
         return;
     }
 
@@ -336,7 +377,11 @@ function renderMembers(members) {
         return na.localeCompare(nb);
     });
 
-    sorted.forEach(member => {
+    const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);      // e.g. the last member of the last page was deleted
+    renderPager(sorted.length, totalPages);
+
+    sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).forEach(member => {
         const fullname = `${member.firstname} ${member.lastname}`;
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${member.uid}`;
 
@@ -395,7 +440,8 @@ function renderMembers(members) {
             </td>
             <td>
                 <div class="action-buttons">
-                    <button class="btn btn-edit" onclick="openEditModal('${member.key}', '${fullname.replace(/'/g, "\\'")}', '${member.uid}')">Edit/Extend</button>
+                    <button class="btn btn-edit" onclick="openEditModal('${member.key}', '${fullname.replace(/'/g, "\\'")}', '${member.uid}', 'edit')">Edit</button>
+                    <button class="btn btn-extend" onclick="openEditModal('${member.key}', '${fullname.replace(/'/g, "\\'")}', '${member.uid}', 'extend')">Extend</button>
                     <button class="btn btn-delete" onclick="deleteMember('${member.key}', '${fullname.replace(/'/g, "\\'")}')">Delete</button>
                 </div>
             </td>
@@ -414,9 +460,17 @@ function showQRModal(uid, name) {
     if (qrModal) qrModal.style.display = 'block';
 }
 
-function openEditModal(memberKey, name, uid) {
+function openEditModal(memberKey, name, uid, mode = 'edit') {
     const member = allMembers.find(m => m.key === memberKey);
     if (!member) return;
+
+    // 'edit' = personal details only, 'extend' = add months to the membership only
+    mode = mode === 'extend' ? 'extend' : 'edit';
+    if (editModal) editModal.dataset.mode = mode;
+    const title = document.getElementById('editModalTitle'), sub = document.getElementById('editModalSub'), confirmBtn = document.getElementById('confirmEdit');
+    if (title) title.textContent = mode === 'extend' ? 'Extend Membership' : 'Edit Member';
+    if (sub) sub.textContent = `${member.firstname || ''} ${member.lastname || ''} \u00b7 ${member.uid || ''}`.trim();
+    if (confirmBtn) confirmBtn.textContent = mode === 'extend' ? 'Extend Membership' : 'Save Changes';
 
     currentEditMember = member;
     setupEditModalListeners();
@@ -476,29 +530,53 @@ function openEditModal(memberKey, name, uid) {
 
 async function handleConfirmEdit() {
     if (!currentEditMember) return;
+    const mode = editModal?.dataset.mode === 'extend' ? 'extend' : 'edit';
+    const key = currentEditMember.key;
 
-    const editFirstName = document.getElementById("editFirstName");
-    const editLastName = document.getElementById("editLastName");
-    const editPhone = document.getElementById("editPhone");
+    // ── Edit: personal details only (no payment, no change to the membership) ──
+    if (mode === 'edit') {
+        const editFirstName = document.getElementById("editFirstName");
+        const editLastName = document.getElementById("editLastName");
+        const editPhone = document.getElementById("editPhone");
+
+        if (!editFirstName?.value.trim() || !editLastName?.value.trim()) {
+            alert("Please enter both first and last name");
+            return;
+        }
+        const editPhoneVal = editPhone?.value.trim();
+        if (!editPhoneVal) {
+            alert("Please enter mobile number");
+            return;
+        }
+        if (!/^\d{11}$/.test(editPhoneVal)) {
+            alert("Mobile number must be exactly 11 digits (numbers only)");
+            editPhone.focus();
+            return;
+        }
+
+        try {
+            await update(ref(db, `Customers/${key}`), {
+                "personal_info/firstname": editFirstName.value.trim(),
+                "personal_info/lastname": editLastName.value.trim(),
+                "personal_info/phone": editPhoneVal,
+                "personal_info/fb_name": document.getElementById("editFbName")?.value.trim() || "",
+                "personal_info/gender": document.getElementById("editGender")?.value || "",
+                "personal_info/age": document.getElementById("editAge")?.value ? parseInt(document.getElementById("editAge").value) : "",
+                "personal_info/home_address": document.getElementById("editAddress")?.value.trim() || ""
+            });
+            alert("Member details saved.");
+            if (editModal) editModal.style.display = 'none';
+            currentEditMember = null;
+        } catch (error) {
+            alert('Error saving member: ' + error.message);
+        }
+        return;
+    }
+
+    // ── Extend: add months and payment to the membership only (personal details untouched) ──
     const editPayment = document.getElementById("editPayment");
     const editMonths = document.getElementById("editMonths");
     const editMembershipType = document.getElementById("editMembershipType");
-
-    if (!editFirstName?.value.trim() || !editLastName?.value.trim()) {
-        alert("Please enter both first and last name");
-        return;
-    }
-
-    const editPhoneVal = editPhone?.value.trim();
-    if (!editPhoneVal) {
-        alert("Please enter mobile number");
-        return;
-    }
-    if (!/^\d{11}$/.test(editPhoneVal)) {
-        alert("Mobile number must be exactly 11 digits (numbers only)");
-        editPhone.focus();
-        return;
-    }
 
     const currentPrice = getCurrentEditPrice();
     if (!editPayment?.value.trim() || parseInt(editPayment.value) < currentPrice) {
@@ -513,8 +591,7 @@ async function handleConfirmEdit() {
         const extensionTypeText = editMembershipType ?
             editMembershipType.options[editMembershipType.selectedIndex].text.split(' - ')[0] : 'Regular';
 
-        const memberRef = ref(db, `Customers/${currentEditMember.key}`);
-        const snapshot = await get(memberRef);
+        const snapshot = await get(ref(db, `Customers/${key}`));
         const memberData = snapshot.val();
 
         const currentMembership = memberData.membership || {};
@@ -526,24 +603,14 @@ async function handleConfirmEdit() {
         newEndDate.setMonth(newEndDate.getMonth() + newMonths);
         const newEndKey = localDateKey(newEndDate);
         const totalRemainingDays = liveRemainingDays({ end_date: newEndKey });
-        const currentMonthsTotal = currentMembership.months_paid || 0;
-        const totalMonths = currentMonthsTotal + newMonths;
-        const currentPaymentTotal = currentMembership.payment_amount || 0;
-        const totalPayment = currentPaymentTotal + newPaymentAmount;
-        const newMonthlyRate = getCurrentEditPrice();
+        const totalMonths = (currentMembership.months_paid || 0) + newMonths;
+        const totalPayment = (currentMembership.payment_amount || 0) + newPaymentAmount;
 
-        await update(ref(db, `Customers/${currentEditMember.key}`), {
-            "personal_info/firstname": editFirstName.value.trim(),
-            "personal_info/lastname": editLastName.value.trim(),
-            "personal_info/phone": editPhone.value.trim(),
+        await update(ref(db, `Customers/${key}`), {
             "personal_info/membership_type": extensionType,
-            "personal_info/fb_name": document.getElementById("editFbName")?.value.trim() || "",
-            "personal_info/gender": document.getElementById("editGender")?.value || "",
-            "personal_info/age": document.getElementById("editAge")?.value ? parseInt(document.getElementById("editAge").value) : "",
-            "personal_info/home_address": document.getElementById("editAddress")?.value.trim() || "",
             "membership/plan": extensionType,
             "membership/plan_display": extensionTypeText,
-            "membership/monthly_rate": newMonthlyRate,
+            "membership/monthly_rate": getCurrentEditPrice(),
             "membership/payment_amount": totalPayment,
             "membership/months_paid": totalMonths,
             "membership/start_date": stillActive ? (currentMembership.start_date || localDateKey()) : localDateKey(),
@@ -553,12 +620,11 @@ async function handleConfirmEdit() {
             "membership/status": "active"
         });
 
-        alert(`Member Updated!\nNew total: ${totalRemainingDays} days remaining`);
+        alert(`Membership extended!\nNew total: ${totalRemainingDays} days remaining`);
         if (editModal) editModal.style.display = 'none';
         currentEditMember = null;
-
     } catch (error) {
-        alert('Error updating member: ' + error.message);
+        alert('Error extending membership: ' + error.message);
     }
 }
 
@@ -576,7 +642,7 @@ async function deleteMember(memberKey, name) {
 function searchMembers() {
     const searchTerm = searchInput.value.toLowerCase().trim();
     if (!searchTerm) {
-        renderMembers(allMembers);
+        renderMembers(allMembers, true);
         return;
     }
     const filtered = allMembers.filter(member => {
@@ -589,7 +655,7 @@ function searchMembers() {
             member.lastname.toLowerCase().includes(searchTerm) ||
             phone.includes(searchTerm);
     });
-    renderMembers(filtered);
+    renderMembers(filtered, true);
 }
 
 let _incHistData = null;
