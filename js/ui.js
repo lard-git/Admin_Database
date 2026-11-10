@@ -65,12 +65,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const stamp = t => t ? new Date(t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'earlier';
   const renderNet = s => {
     const off = s.connected === false || s.usingSaved;
-    pill.hidden = s.connected === null && !s.usingSaved;
+    pill.hidden = s.connected === null && !s.usingSaved && !s.pending;
     pill.className = 'netpill ' + (off ? 'off' : 'on');
-    pill.textContent = off ? 'Offline' : 'Online';
+    pill.textContent = (off ? 'Offline' : 'Online') + (s.pending ? ` \u00b7 ${s.pending} waiting` : '');
     document.body.classList.toggle('is-offline', off);
     bar.hidden = !off;
-    bar.textContent = `Offline · showing the data saved at ${stamp(s.lastSync)}. Changes can't be saved until the connection is back.`;
+    bar.textContent = `Offline · showing the data saved at ${stamp(s.lastSync)}. ` + (page === 'occupancy.html'
+      ? 'Check-ins and check-outs are kept on this computer and upload when the connection is back.'
+      : "Changes can't be saved until the connection is back.");
   };
   window.addEventListener('gym-net', e => renderNet(e.detail));
   renderNet(netState);

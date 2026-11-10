@@ -5,7 +5,7 @@ const FILES = [
   'members.html', 'occupancy.html', 'analytics.html', 'firebase_crud.html',
   'resources/theme.css', 'resources/members.css', 'resources/occupancy.css', 'resources/analytics.css', 'resources/firebase-crud.css',
   'js/ui.js', 'js/members.js', 'js/occupancy.js', 'js/analytics.js', 'js/app.js', 'js/auth.js',
-  'js/database_init.js', 'js/forecast.js', 'js/membership.js', 'js/offline.js',
+  'js/database_init.js', 'js/forecast.js', 'js/membership.js', 'js/offline.js', 'js/queue-logic.js',
   'resources/lollang.png', 'FOT-Skip%20Std%20B.otf',
 ];
 const LIBRARIES = [

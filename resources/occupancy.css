@@ -387,3 +387,8 @@ tbody tr:last-child td { border-bottom: none; }
 .ctx-item:hover { background: #383838; }
 .ctx-item.ctx-danger { color: #f15e6c; }
 .ctx-item.ctx-danger:hover { background: rgba(241,94,108,0.1); }
+
+/* ── Offline lock + waiting-to-upload list ── */
+.ctx-item.ctx-locked { opacity: 0.4; cursor: not-allowed; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; filter: none; transform: none; }
+#syncReview .btn { margin-left: 8px; padding: 3px 12px; font-size: 12px; }

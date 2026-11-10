@@ -1,5 +1,5 @@
 import { db } from './database_init.js';
-import { ref, set, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { ref, set, get } from './offline.js';   // same drop-ins as the other pages: offline, saving is refused with a clear message
 import { liveRemainingDays, localDateKey } from './membership.js';
 
 const FnameInp = document.getElementById("FnameInp");

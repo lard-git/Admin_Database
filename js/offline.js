@@ -1,21 +1,24 @@
 // offline.js — keeps a saved copy of what the pages read from the database and serves it when the database can't be reached.
 // Pages import ref / get / onValue / set / update / remove from here instead of from Firebase directly.
 //
+// STEP 2 (bottom of this file): check-ins and check-outs are saved on this computer first and uploaded when the database confirms them.
 // STEP 1 (this file): read side. Pages open and show the last-known data with an "Offline" banner.
 // Writes while offline are refused with a clear message (queued saving comes in step 2). Deleting members will always need a connection.
 
 import { db } from './database_init.js';
-import { ref as fbRef, get as fbGet, onValue as fbOnValue, set as fbSet, update as fbUpdate, remove as fbRemove }
+import { ref as fbRef, get as fbGet, onValue as fbOnValue, set as fbSet, update as fbUpdate, remove as fbRemove, runTransaction as fbRunTransaction }
     from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
+import { applyEntry } from './queue-logic.js';
 
 // ── connection state (other scripts listen for the 'gym-net' event) ──
-export const netState = { connected: null, usingSaved: false, lastSync: null };
+export const netState = { connected: null, usingSaved: false, lastSync: null, pending: 0 };   // pending = check-ins/outs saved here, not yet uploaded
 const emit = () => window.dispatchEvent(new CustomEvent('gym-net', { detail: { ...netState } }));
 
 fbOnValue(fbRef(db, '.info/connected'), s => {
     netState.connected = s.val() === true;
     if (netState.connected) netState.usingSaved = false;
     emit();
+    if (netState.connected) syncQueue();          // connection is back: upload whatever is waiting
 });
 
 // ── tiny IndexedDB key-value store ──
@@ -118,3 +121,67 @@ const blocked = () => netState.connected === false;
 export const set = (r, v) => { if (blocked()) throw offlineError('this change'); return fbSet(r, v); };
 export const update = (r, v) => { if (blocked()) throw offlineError('this change'); return fbUpdate(r, v); };
 export const remove = r => { if (blocked()) throw new Error("You're offline. Members can only be deleted while you're online."); return fbRemove(r); };
+
+
+// ═══ Saved check-ins / check-outs ═══
+// Every scan is written to this browser first (IndexedDB), then uploaded. Nothing is removed from the list until the database has confirmed it,
+// so a dropped connection, a closed tab or a crash can't lose a scan. Each scan keeps its real time (`at`), so stay times and analytics stay right.
+// What each scan does to a record is in queue-logic.js. Uploading uses a transaction per record and is safe to repeat.
+let Q = [], R = [];                                // Q = waiting to upload, R = could not be applied (needs a look)
+const ready = (async () => { Q = (await idbGet('queue')) || []; R = (await idbGet('review')) || []; changed(); })();
+const saveQ = () => Promise.all([idbSet('queue', Q), idbSet('review', R)]);
+function changed() { netState.pending = Q.length; window.dispatchEvent(new CustomEvent('gym-queue')); emit(); }
+
+const WHAT = { member_in: 'check-in', member_out: 'check-out', walkin_in: 'walk-in', walkin_out: 'walk-out' };
+const describe = e => `${e.label || e.key} ${WHAT[e.type] || e.type} (${new Date(e.at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })})`;
+
+// entry: { type: 'member_in' | 'member_out' | 'walkin_in' | 'walkin_out', key, label, record? (walkin_in only), at? }
+export async function submit(entry) {
+    await ready;
+    const e = { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()), at: new Date().toISOString(), tries: 0, ...entry };
+    Q.push(e);
+    await saveQ(); changed();
+    syncQueue();
+    return e;
+}
+
+let syncing = false;
+export async function syncQueue() {
+    await ready;
+    if (syncing || netState.connected !== true) return;
+    syncing = true;
+    try {
+        while (Q.length && netState.connected === true) {
+            const e = Q[0];
+            let verdict;
+            try {
+                await Promise.race([
+                    fbRunTransaction(fbRef(db, `Customers/${e.key}`), cur => { const o = applyEntry(cur, e); verdict = o.verdict; return o.value; }),
+                    new Promise((_, rej) => setTimeout(() => rej(new Error('no answer from the database')), 15000))
+                ]);
+            } catch (err) {
+                console.error('Upload failed:', err);
+                e.tries = (e.tries || 0) + 1;
+                if (e.tries >= 5) { Q.shift(); R.push({ id: e.id, text: `${describe(e)} could not be uploaded: ${err.message}.` }); }
+                await saveQ(); changed();
+                break;                              // try again later (when the connection returns, or every 20 s)
+            }
+            Q.shift();
+            if (verdict && verdict.conflict) R.push({ id: e.id, text: `${describe(e)} was not applied: ${verdict.conflict}.` });
+            await saveQ(); changed();
+        }
+    } finally { syncing = false; }
+}
+setInterval(() => { if (Q.length) syncQueue(); }, 20000);
+ready.then(() => syncQueue());
+
+// ── used by the Occupancy page ──
+export const hasPending = key => Q.some(e => e.key === key);
+export const pendingWalkinKeys = () => Q.filter(e => e.type === 'walkin_in').map(e => e.key);
+// a record with the waiting scans applied on top (so the screen shows them straight away)
+export function overlayPending(key, data) {
+    let cur = data ?? null;
+    for (const e of Q) if (e.key === key) { const o = applyEntry(cur, e); if (o.verdict === 'ok' && o.value) cur = o.value; }
+    return cur;
+}
+export const review = { list: () => [...R], dismiss: id => { R = R.filter(r => r.id !== id); saveQ(); changed(); } };
