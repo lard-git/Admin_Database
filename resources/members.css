@@ -371,8 +371,8 @@ tbody tr:last-child td { border-bottom: none; }
 }
 
 /* the rows and the close wrapper only group markup: let their fields sit directly in the grid */
-.name .form-row, .x { display: contents; }
-.name .form-group { margin-bottom: 0; }
+.edit-form .name .form-row, .edit-form .name .x { display: contents; }
+.edit-form .name .form-group { margin: 0; }
 .name .half-width:empty { display: none; }
 .name > .form-group:not(.half-width) { grid-column: 1 / -1; }   /* home address spans the full width */
 .name label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -510,6 +510,7 @@ tbody tr:last-child td { border-bottom: none; }
 /* ── Modal Buttons ── */
 .modal-buttons {
     display: flex;
+    align-items: stretch;
     gap: 12px;
     justify-content: center;
     margin-top: 20px;
@@ -519,16 +520,19 @@ tbody tr:last-child td { border-bottom: none; }
 
 .modal-buttons .btn {
     padding: 11px 28px;
-    min-width: 130px;
+    min-width: 190px;
     font-size: 13px;
     border-radius: 50px;
     width: auto;
     margin: 0;
+    box-sizing: border-box;
 }
 
 /* Cancel also carries the .close-edit class, which pins it to the corner like the × button: put it back in the row */
 .modal-buttons .close-edit {
     position: static;
+    top: auto;      /* the corner offsets of the × button must never apply here, even when a click effect sets position: relative */
+    right: auto;
     font-size: 13px;
     font-weight: 700;
     line-height: normal;
