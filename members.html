@@ -99,7 +99,7 @@
       <h3>Income History <small id="incomeModalRange" style="font-size:12px;color:#6a6a6a;font-weight:normal;"></small></h3>
       <div class="income-totals">
         <div class="income-total-card">
-          <span class="itc-label">Total (14 days)</span>
+          <span class="itc-label">Month total</span>
           <span class="itc-value" id="incomeTotalAll">₱0</span>
         </div>
         <div class="income-total-card memberships">
@@ -110,6 +110,10 @@
           <span class="itc-label">Walk-ins</span>
           <span class="itc-value" id="incomeTotalWalkins">₱0</span>
         </div>
+      </div>
+      <div class="income-export">
+        <select id="incomeExportSel" aria-label="What to download"></select>
+        <button id="incomeExportBtn" class="btn btn-secondary">Download CSV</button>
       </div>
       <div id="incomeHistoryContent" class="income-table-wrap"></div>
     </div>

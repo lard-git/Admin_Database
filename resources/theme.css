@@ -218,4 +218,9 @@
   /* ── Extend button + edit window title ── */
   .btn-extend { background: var(--ok-s); color: var(--ok); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
   .edit-title p { color: var(--fa); }
+
+  /* ── Income history: download row ── */
+  .income-export { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 16px; }
+  .income-export select { width: auto; min-width: 190px; padding: 9px 12px; }
+  .income-export .btn { margin: 0; white-space: nowrap; }
 }

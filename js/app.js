@@ -1,5 +1,5 @@
 import { db } from './database_init.js';
-import { ref, set, get } from './offline.js';   // same drop-ins as the other pages: offline, saving is refused with a clear message
+import { ref, set, get } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
 import { liveRemainingDays, localDateKey } from './membership.js';
 
 const FnameInp = document.getElementById("FnameInp");
@@ -174,7 +174,8 @@ async function AddData() {
                 total_visits: 0,
                 total_time_spent: 0
             },
-            attendance_history: []
+            attendance_history: [],
+            payments: { [`p${Date.now()}`]: { date: startDateStr, amount: paymentAmount, months: selectedMonths, type: 'new' } }
         });
 
         alert(`Member Added Successfully!\nType: ${membershipTypeText}\nMonthly Rate: ₱${getCurrentPrice()}\nPayment: ₱${paymentAmount}\nDuration: ${selectedMonths} month(s)\nRemaining Days: ${remainingDays}`);

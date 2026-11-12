@@ -1,6 +1,7 @@
 import { db } from './database_init.js';
 import { ref, get, update, remove, onValue } from './offline.js';
 import { liveRemainingDays, localDateKey, parseDate } from './membership.js';
+import { buildIncomeByDay, earliestMonth, incomeCSV, listMonths } from './income.js';
 
 const customersRef = ref(db, "Customers");
 const tableBody = document.getElementById("memberTableBody");
@@ -20,6 +21,7 @@ const downloadQR = document.getElementById("downloadQR");
 const editModal = document.getElementById("editModal");
 
 let allMembers = [];
+let incomeDays = {};
 
 // ── pagination: 10 members per page ──
 const PAGE_SIZE = 10;
@@ -238,6 +240,7 @@ function setupEditModalListeners() {
 }
 
 onValue(customersRef, (snapshot) => {
+    incomeDays = buildIncomeByDay(snapshot.val() || {});   // income per day, shared by the cards and the Income History
     allMembers = [];
     tableBody.innerHTML = "";
 
@@ -606,7 +609,15 @@ async function handleConfirmEdit() {
         const totalMonths = (currentMembership.months_paid || 0) + newMonths;
         const totalPayment = (currentMembership.payment_amount || 0) + newPaymentAmount;
 
+        // payment ledger: this payment counts on today's date. A member without one gets their earlier total filed on their start date first.
+        const stamp = Date.now(), ledger = {};
+        if (!memberData.payments && currentMembership.payment_amount > 0) {
+            ledger[`payments/p${stamp - 1}`] = { date: (currentMembership.start_date || localDateKey()).slice(0, 10), amount: currentMembership.payment_amount, months: currentMembership.months_paid || 1, type: 'earlier' };
+        }
+        ledger[`payments/p${stamp}`] = { date: localDateKey(), amount: newPaymentAmount, months: newMonths, type: 'extend' };
+
         await update(ref(db, `Customers/${key}`), {
+            ...ledger,
             "personal_info/membership_type": extensionType,
             "membership/plan": extensionType,
             "membership/plan_display": extensionTypeText,
@@ -658,9 +669,11 @@ function searchMembers() {
     renderMembers(filtered, true);
 }
 
-let _incHistData = null;
-let _incCustDay = {};
+let _incDays = {};          // income per day for every month, built from the live records
+let _incEarliest = null;   // first month that has income
 let _incViewMonth = null;
+
+const _monthText = key => { const [y, m] = key.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); };
 
 async function showIncomeHistory() {
     const modal = document.getElementById('incomeHistoryModal');
@@ -669,16 +682,7 @@ async function showIncomeHistory() {
     modal.style.display = 'flex';
     content.innerHTML = '<p style="color:var(--fa);text-align:center;padding:24px;">Loading…</p>';
 
-    const today = new Date();
-    const currentMonthStr = today.toISOString().slice(0, 7);
-
-    // Fetch IncomeHistory and Customers independently so one failure doesn't block both
-    let histSnap = null, custSnap = null;
-    try {
-        histSnap = await get(ref(db, 'Customers/_IncomeHistory'));
-    } catch (e) {
-        console.warn('IncomeHistory read failed:', e);
-    }
+    let custSnap = null, histSnap = null;
     try {
         custSnap = await get(ref(db, 'Customers'));
     } catch (e) {
@@ -686,39 +690,34 @@ async function showIncomeHistory() {
         content.innerHTML = '<p style="color:var(--bad);text-align:center;padding:24px;">Failed to load data. Check Firebase permissions.</p>';
         return;
     }
+    try { histSnap = await get(ref(db, 'Customers/_IncomeHistory')); } catch (e) { /* the archive is optional */ }
 
-    _incHistData = (histSnap && histSnap.exists()) ? histSnap.val() : {};
-    _incCustDay = {};
+    // Every month comes from the live records. Anything in the old archive node is only used for days the records don't cover.
+    _incDays = buildIncomeByDay(custSnap && custSnap.exists() ? custSnap.val() : {});
+    const archive = histSnap && histSnap.exists() ? histSnap.val() : {};
+    for (const [d, v] of Object.entries(archive)) if (/^\d{4}-\d{2}-\d{2}$/.test(d) && !_incDays[d]) _incDays[d] = { membership: v.membership || 0, walkin: v.walkin || 0 };
 
-    if (custSnap && custSnap.exists()) {
-        custSnap.forEach(child => {
-            const data = child.val();
-            if (child.key.startsWith('_')) return; // skip _IncomeHistory etc
-            if (child.key.startsWith('WALKIN_')) {
-                let d = null;
-                if (data.gym_data?.last_checkin) d = new Date(data.gym_data.last_checkin).toISOString().split('T')[0];
-                else if (data.timestamp) d = new Date(data.timestamp).toISOString().split('T')[0];
-                else {
-                    const parts = child.key.split('_');
-                    const ts = parseInt(parts[parts.length - 1]);
-                    if (!isNaN(ts) && ts > 1_000_000_000_000) d = new Date(ts).toISOString().split('T')[0];
-                }
-                if (d && d.startsWith(currentMonthStr)) {
-                    if (!_incCustDay[d]) _incCustDay[d] = { membership: 0, walkin: 0 };
-                    _incCustDay[d].walkin += data.payment || data.payment_amount || 40;
-                }
-            } else {
-                const sd = data.membership?.start_date || data.membership?.last_updated;
-                if (sd && sd.startsWith(currentMonthStr)) {
-                    if (!_incCustDay[sd]) _incCustDay[sd] = { membership: 0, walkin: 0 };
-                    _incCustDay[sd].membership += data.membership?.payment_amount || 0;
-                }
-            }
-        });
-    }
+    const curKey = localDateKey().slice(0, 7);
+    _incEarliest = earliestMonth(_incDays) || curKey;
 
+    const sel = document.getElementById('incomeExportSel');
+    if (sel) sel.innerHTML = '<option value="all">All history</option>' + listMonths(_incDays).reverse().map(m => `<option value="${m}">${_monthText(m)}</option>`).join('');
+    const btn = document.getElementById('incomeExportBtn');
+    if (btn) btn.onclick = downloadIncomeCSV;
+
+    const today = new Date();
     _incViewMonth = { year: today.getFullYear(), month: today.getMonth() };
     _renderIncomeMonth(_incViewMonth);
+}
+
+function downloadIncomeCSV() {
+    const v = document.getElementById('incomeExportSel')?.value || 'all';
+    const csv = incomeCSV(_incDays, v === 'all' ? null : v);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = v === 'all' ? 'income-all-history.csv' : `income-${v}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 function _renderIncomeMonth(vm) {
@@ -736,14 +735,18 @@ function _renderIncomeMonth(vm) {
     }
 
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = localDateKey(today);
+    const curKey = todayStr.slice(0, 7);
     const { year, month } = vm;
     const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
-    const isCurrentMonth = monthStr === today.toISOString().slice(0, 7);
-    const monthLabel = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const isCurrentMonth = monthStr === curKey;
+    const monthLabel = _monthText(monthStr);
 
-    const canPrev = !(year === today.getFullYear() && month === 0);
-    const canNext = !(year === today.getFullYear() && month === today.getMonth());
+    const canPrev = monthStr > _incEarliest;
+    const canNext = monthStr < curKey;
+
+    const sel = document.getElementById('incomeExportSel');
+    if (sel) sel.value = monthStr;                       // the download box follows the month you're looking at
 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const rows = [];
@@ -752,17 +755,10 @@ function _renderIncomeMonth(vm) {
     for (let d = daysInMonth; d >= 1; d--) {
         const dateStr = `${monthStr}-${String(d).padStart(2, '0')}`;
         const dt = new Date(year, month, d);
-        if (dt > today) continue;
+        if (dateStr > todayStr) continue;
 
-        let membership = 0, walkin = 0;
-        if (isCurrentMonth && _incCustDay[dateStr]) {
-            membership = _incCustDay[dateStr].membership || 0;
-            walkin = _incCustDay[dateStr].walkin || 0;
-        } else if (!isCurrentMonth && _incHistData && _incHistData[dateStr]) {
-            membership = _incHistData[dateStr].membership || 0;
-            walkin = _incHistData[dateStr].walkin || 0;
-        }
-
+        const membership = _incDays[dateStr]?.membership || 0;
+        const walkin = _incDays[dateStr]?.walkin || 0;
         totalMemb += membership;
         totalWalk += walkin;
 
@@ -805,44 +801,29 @@ function _renderIncomeMonth(vm) {
 
 window._incomeNavMonth = function(dir) {
     if (!_incViewMonth) return;
-    const today = new Date();
     let { year, month } = _incViewMonth;
     month += dir;
     if (month < 0) { month = 11; year--; }
     if (month > 11) { month = 0; year++; }
-    if (year < today.getFullYear() || (year === today.getFullYear() && month < 0)) return;
-    if (year > today.getFullYear() || (year === today.getFullYear() && month > today.getMonth())) return;
+    const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+    if (key < _incEarliest || key > localDateKey().slice(0, 7)) return;
     _incViewMonth = { year, month };
     _renderIncomeMonth(_incViewMonth);
 };
 
 function computeDailyIncome(targetDateStr) {
-    let income = 0;
-    allMembers.forEach(m => {
-        const start = m.membership?.start_date;
-        const updated = m.membership?.last_updated;
-        if (start === targetDateStr || updated === targetDateStr) {
-            income += m.membership?.payment_amount || 0;
-        }
-    });
-    Object.values(memberWalkins).forEach(w => {
-        const d = w._walkinDate;
-        if (d && d.toISOString().split('T')[0] === targetDateStr) {
-            income += w.payment || w.payment_amount || 40;
-        }
-    });
-    return income;
+    const d = incomeDays[targetDateStr];
+    return d ? d.membership + d.walkin : 0;
 }
 
 function updateDailyIncomeDisplay() {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
     const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
     const twoDays = new Date(today); twoDays.setDate(twoDays.getDate() - 2);
 
-    const todayIncome = computeDailyIncome(todayStr);
-    const yestIncome = computeDailyIncome(yesterday.toISOString().split('T')[0]);
-    const twoDaysIncome = computeDailyIncome(twoDays.toISOString().split('T')[0]);
+    const todayIncome = computeDailyIncome(localDateKey(today));
+    const yestIncome = computeDailyIncome(localDateKey(yesterday));
+    const twoDaysIncome = computeDailyIncome(localDateKey(twoDays));
 
     const el0 = document.getElementById('dailyIncomeToday');
     const el1 = document.getElementById('dailyIncome1');
