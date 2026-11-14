@@ -192,6 +192,9 @@ async function AddData() {
 document.addEventListener('DOMContentLoaded', function() {
     initializePaymentCalculator();
 
+    // Age: digits only, at most 3
+    AgeInp.addEventListener('input', () => { AgeInp.value = AgeInp.value.replace(/\D/g, '').slice(0, 3); });
+
     document.getElementById("AddBtn").onclick = AddData;
 
     [FnameInp, LnameInp, MobileInp, UidInp, PaymentInp, FbNameInp, AgeInp, AddressInp].forEach(input => {

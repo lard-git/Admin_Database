@@ -4,6 +4,10 @@ import { liveRemainingDays, localDateKey, parseDate } from './membership.js';
 import { buildIncomeByDay, earliestMonth, incomeCSV, listMonths } from './income.js';
 
 const customersRef = ref(db, "Customers");
+
+// Age: digits only, at most 3
+const editAgeInput = document.getElementById('editAge');
+if (editAgeInput) editAgeInput.addEventListener('input', () => { editAgeInput.value = editAgeInput.value.replace(/\D/g, '').slice(0, 3); });
 const tableBody = document.getElementById("memberTableBody");
 const emptyState = document.getElementById("emptyState");
 const memberCount = document.getElementById("memberCount");

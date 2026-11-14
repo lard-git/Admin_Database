@@ -1,5 +1,5 @@
 import { db } from './database_init.js';
-import { ref, update, onValue, netState, submit, overlayPending, pendingWalkinKeys, hasPending, review } from './offline.js';
+import { ref, set, get, update, onValue } from './offline.js';
 import { withLiveMembership } from './membership.js';
 
 const memberUidInput = document.getElementById('memberUidInput');
@@ -86,7 +86,6 @@ function init() {
         ctxForceRemove.addEventListener('click', async () => {
             contextMenu.style.display = 'none';
             if (!ctxTargetKey) return;
-            if (locked()) { showMessage('Force Remove needs a connection and nothing waiting to upload.', 'warning'); return; }
             if (confirm('Force remove this person from the gym? (Does not record checkout time)')) {
                 try {
                     if (ctxIsWalkin) {
@@ -103,39 +102,30 @@ function init() {
     }
 }
 
-let lastSnap = null;
-
 function loadMembers() {
-    onValue(ref(db, 'Customers'), snapshot => { lastSnap = snapshot; rebuild(); });
-    window.addEventListener('gym-queue', () => { rebuild(); renderReview(); applyLock(); });
-    window.addEventListener('gym-net', applyLock);
-    applyLock();
-    renderReview();
-}
+    const membersRef = ref(db, 'Customers');
 
-// members and walk-ins as the database has them, with the check-ins / check-outs still waiting to upload applied on top
-function rebuild() {
-    allMembers = [];
-    allWalkins = {};
-    const seen = new Set();
+    onValue(membersRef, (snapshot) => {
+        allMembers = [];
+        allWalkins = {};
 
-    if (lastSnap && lastSnap.exists()) {
-        lastSnap.forEach(child => {
-            const key = child.key, data = overlayPending(key, child.val());
-            seen.add(key);
-            if (!data) return;
-            if (key.startsWith('WALKIN_')) allWalkins[key] = { key, ...data, is_walkin: true };
-            else allMembers.push(normalizeMemberData(key, data));
-        });
-    }
-    pendingWalkinKeys().filter(k => !seen.has(k)).forEach(k => {       // walk-ins scanned while offline, not in the database yet
-        const data = overlayPending(k, null);
-        if (data) allWalkins[k] = { key: k, ...data, is_walkin: true };
+        if (snapshot.exists()) {
+            snapshot.forEach(child => {
+                const key = child.key;
+                const data = child.val();
+
+                if (key.startsWith('WALKIN_')) {
+                    allWalkins[key] = { key, ...data, is_walkin: true };
+                } else {
+                    allMembers.push(normalizeMemberData(key, data));
+                }
+            });
+        }
+
+        updateOccupancyDisplay();
+        updateTodayActivity();
+        updateStats();
     });
-
-    updateOccupancyDisplay();
-    updateTodayActivity();
-    updateStats();
 }
 
 function normalizeMemberData(key, data) {
@@ -215,21 +205,20 @@ async function handleCheckInOut() {
 }
 
 async function handleDayPassIn() {
-    const now = new Date(), at = now.toISOString();
-    const today = at.split('T')[0];
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
     const timestamp = now.getTime();
     const walkinKey = `WALKIN_${today}_${timestamp}`;
     const walkinId = timestamp.toString().slice(-4);
 
-    const record = {
+    await set(ref(db, `Customers/${walkinKey}`), {
         personal_info: { firstname: "WALK-IN", lastname: `#${walkinId}`, uid: walkinKey, type: "daypass" },
-        gym_data: { is_checked_in: true, last_checkin: at, last_checkout: null, total_visits: 1, total_time_spent: 0, uid: walkinKey },
+        gym_data: { is_checked_in: true, last_checkin: now.toISOString(), last_checkout: null, total_visits: 1, total_time_spent: 0, uid: walkinKey },
         membership: { status: "active", remaining_days: 1, start_date: today, end_date: today },
-        attendance_history: [{ checkin: at, checkout: null, time_spent: null, date: today }]
-    };
-    await submit({ type: 'walkin_in', key: walkinKey, at, record, label: `Walk-in #${walkinId}` });
+        attendance_history: [{ checkin: now.toISOString(), checkout: null, time_spent: null, date: today }]
+    });
 
-    showMessage(`Walk-in checked IN! ID: ${walkinId}${savedNote()}`, 'success');
+    showMessage(`Walk-in checked IN! ID: ${walkinId}`, 'success');
 }
 
 async function handleDayPassOut() {
@@ -248,23 +237,60 @@ async function handleDayPassOut() {
 
     const oldest = activeWalkins[0];
     const timeSpent = Math.round((now - oldest.checkinTime) / (1000 * 60));
-    await submit({ type: 'walkin_out', key: oldest.key, at: now.toISOString(), label: `Walk-in #${oldest.key.split('_').pop().slice(-4)}` });
-    showMessage(`Walk-out recorded! Time: ${timeSpent}m${savedNote()}`, 'info');
+    const history = oldest.data.attendance_history || [];
+
+    const updates = {
+        "gym_data/is_checked_in": false,
+        "gym_data/last_checkout": now.toISOString(),
+        "gym_data/time_spent": timeSpent,
+        "membership/status": "completed"
+    };
+
+    if (history.length > 0 && !history[0].checkout) {
+        history[0].checkout = now.toISOString();
+        history[0].time_spent = timeSpent;
+        updates.attendance_history = history;
+    }
+
+    await update(ref(db, `Customers/${oldest.key}`), updates);
+    showMessage(`Walk-out recorded! Time: ${timeSpent}m`, 'info');
 }
 
 async function checkInMember(member) {
-    const name = `${member.firstname} ${member.lastname}`.trim();
-    await submit({ type: 'member_in', key: member.key, label: name });
-    showMessage(`${name} checked in!${savedNote()}`, 'success');
+    const now = new Date();
+    const checkInTime = now.toISOString();
+    const history = [...(member.attendance_history || [])];
+    history.unshift({ checkin: checkInTime, checkout: null, time_spent: null, date: now.toISOString().split('T')[0] });
+
+    await update(ref(db, `Customers/${member.key}`), {
+        "gym_data/is_checked_in": true,
+        "gym_data/last_checkin": checkInTime,
+        attendance_history: history.slice(0, 100)
+    });
+
+    showMessage(`${member.firstname} ${member.lastname} checked in!`, 'success');
 }
 
 async function checkOutMember(member) {
     const now = new Date();
-    const name = `${member.firstname} ${member.lastname}`.trim();
     const lastCheckIn = member.gym_data.last_checkin ? new Date(member.gym_data.last_checkin) : new Date();
     const timeSpent = Math.round((now - lastCheckIn) / (1000 * 60));
-    await submit({ type: 'member_out', key: member.key, at: now.toISOString(), label: name });
-    showMessage(`${name} checked out. Time: ${timeSpent}m${savedNote()}`, 'info');
+    const history = [...(member.attendance_history || [])];
+
+    if (history.length > 0 && !history[0].checkout) {
+        history[0].checkout = now.toISOString();
+        history[0].time_spent = timeSpent;
+    }
+
+    await update(ref(db, `Customers/${member.key}`), {
+        "gym_data/is_checked_in": false,
+        "gym_data/last_checkout": now.toISOString(),
+        "gym_data/total_time_spent": (member.gym_data.total_time_spent || 0) + timeSpent,
+        "gym_data/total_visits": (member.gym_data.total_visits || 0) + 1,
+        attendance_history: history
+    });
+
+    showMessage(`${member.firstname} ${member.lastname} checked out. Time: ${timeSpent}m`, 'info');
 }
 
 function updateOccupancyDisplay() {
@@ -297,7 +323,7 @@ function updateOccupancyDisplay() {
                     <div class="member-uid">UID: ${member.uid}</div>
                     <div class="member-membership ${membershipClass}">${membershipStatus}</div>
                 </div>
-                <div class="checkin-time">${checkInTime.toLocaleTimeString()}<br>(${duration}m ago)${hasPending(member.key) ? '<br>waiting to upload' : ''}</div>
+                <div class="checkin-time">${checkInTime.toLocaleTimeString()}<br>(${duration}m ago)</div>
             </div>`;
     }).join('');
 
@@ -313,7 +339,7 @@ function updateOccupancyDisplay() {
                     <div class="member-uid">DAY PASS</div>
                     <div class="member-membership membership-active">Active Session</div>
                 </div>
-                <div class="checkin-time">${checkInTime.toLocaleTimeString()}<br>(${duration}m ago)${hasPending(walkin.key) ? '<br>waiting to upload' : ''}</div>
+                <div class="checkin-time">${checkInTime.toLocaleTimeString()}<br>(${duration}m ago)</div>
             </div>`;
     }).join('');
 
@@ -419,37 +445,41 @@ function updateStats() {
 }
 
 async function clearTodayActivity() {
-    if (locked()) { showMessage('Clear Today needs a connection and nothing waiting to upload.', 'warning'); return; }
-    if (!confirm('Clear all of today\'s activity?')) return;
-
-    const today = new Date().toISOString().split('T')[0];
+    // "Today" has to mean the same thing as the Today's Activity list: the local calendar day.
+    // (The old code compared UTC dates, so anything from midnight to 8 AM Philippine time was missed.)
+    const todayStr = new Date().toDateString();
+    const isToday = iso => !!iso && new Date(iso).toDateString() === todayStr;
     const updates = {};
+    let removed = 0;
 
     allMembers.forEach(member => {
-        if (member.attendance_history) {
-            const filtered = member.attendance_history.filter(visit =>
-                !visit.checkin || new Date(visit.checkin).toISOString().split('T')[0] !== today
-            );
-            if (filtered.length !== member.attendance_history.length) {
-                updates[`Customers/${member.key}/attendance_history`] = filtered;
-                if (member.gym_data.is_checked_in) {
-                    updates[`Customers/${member.key}/gym_data/is_checked_in`] = false;
-                }
-            }
-        }
+        const history = Array.isArray(member.attendance_history) ? member.attendance_history : Object.values(member.attendance_history || {});
+        const gone = history.filter(v => isToday(v.checkin));
+        if (!gone.length) return;
+        const kept = history.filter(v => !isToday(v.checkin));
+        const finished = gone.filter(v => v.checkout);                    // only finished visits were added to the totals
+        const gd = member.gym_data || {};
+        removed += gone.length;
+        updates[`Customers/${member.key}/attendance_history`] = kept.length ? kept : null;
+        updates[`Customers/${member.key}/gym_data/total_visits`] = Math.max(0, (gd.total_visits || 0) - finished.length);
+        updates[`Customers/${member.key}/gym_data/total_time_spent`] = Math.max(0, (gd.total_time_spent || 0) - finished.reduce((sum, v) => sum + (v.time_spent || 0), 0));
+        updates[`Customers/${member.key}/gym_data/last_checkin`] = kept[0]?.checkin ?? null;
+        updates[`Customers/${member.key}/gym_data/last_checkout`] = kept[0]?.checkout ?? null;
+        if (gd.is_checked_in) updates[`Customers/${member.key}/gym_data/is_checked_in`] = false;
     });
 
-    Object.keys(allWalkins).forEach(key => {
-        if (key.includes(today)) updates[`Customers/${key}`] = null;
+    Object.values(allWalkins).forEach(walkin => {
+        if (isToday(walkin.gym_data?.last_checkin)) { updates[`Customers/${walkin.key}`] = null; removed++; }
     });
 
-    if (Object.keys(updates).length > 0) {
-        try {
-            await update(ref(db), updates);
-            showMessage('Today\'s records cleared!', 'success');
-        } catch (error) {
-            showMessage('Error: ' + error.message, 'error');
-        }
+    if (!removed) { showMessage('Nothing to clear: there is no activity today.', 'info'); return; }
+    if (!confirm(`Clear ${removed} record${removed === 1 ? '' : 's'} from today's activity? This can't be undone.`)) return;
+
+    try {
+        await update(ref(db), updates);
+        showMessage(`Cleared ${removed} record${removed === 1 ? '' : 's'} from today.`, 'success');
+    } catch (error) {
+        showMessage('Error: ' + error.message, 'error');
     }
 }
 
@@ -472,35 +502,6 @@ function getDaysClass(remainingDays) {
     if (remainingDays <= 0) return 'days-danger';
     if (remainingDays <= 7) return 'days-warning';
     return 'days-safe';
-}
-
-const savedNote = () => netState.connected === true ? '' : ' (saved on this computer, uploads when online)';
-const locked = () => netState.connected !== true || netState.pending > 0;
-
-// Force Remove and Clear Today change or delete data in ways that can't be saved for later, so they stay locked until the
-// connection is confirmed and nothing is waiting to upload
-function applyLock() {
-    const l = locked();
-    clearActivity.disabled = l;
-    clearActivity.title = l ? 'Needs a connection and nothing waiting to upload' : '';
-    ctxForceRemove?.classList.toggle('ctx-locked', l);
-}
-
-// scans that could not be applied (for example the member was removed in the meantime) stay listed until dismissed
-function renderReview() {
-    let box = document.getElementById('syncReview');
-    const items = review.list();
-    if (!items.length) { box?.remove(); return; }
-    if (!box) { box = document.createElement('div'); box.id = 'syncReview'; box.className = 'message warning'; checkinMessage.after(box); }
-    box.replaceChildren(...items.map(it => {
-        const row = document.createElement('div');
-        row.textContent = it.text + ' ';
-        const b = document.createElement('button');
-        b.className = 'btn btn-secondary'; b.textContent = 'Dismiss';
-        b.onclick = () => review.dismiss(it.id);
-        row.appendChild(b);
-        return row;
-    }));
 }
 
 function showMessage(text, type) {
@@ -536,9 +537,26 @@ memberUidInput.addEventListener('input', function() {
 });
 
 async function checkOutWalkinByKey(walkinKey) {
-    if (!allWalkins[walkinKey]) { showMessage('Walk-in record not found.', 'error'); return; }
-    await submit({ type: 'walkin_out', key: walkinKey, label: `Walk-in #${walkinKey.split('_').pop().slice(-4)}` });
-    showMessage(`Walk-in checked out successfully!${savedNote()}`, 'success');
+    const now = new Date();
+    const walkinRef = ref(db, `Customers/${walkinKey}`);
+    const snap = await get(walkinRef);
+    if (!snap.exists()) { showMessage('Walk-in record not found.', 'error'); return; }
+    const data = snap.val();
+    const checkin = data.gym_data?.last_checkin ? new Date(data.gym_data.last_checkin) : now;
+    const timeSpent = Math.round((now - checkin) / 60000);
+    const history = data.attendance_history || [];
+    const lastVisit = history[history.length - 1];
+    if (lastVisit && !lastVisit.checkout) {
+        lastVisit.checkout = now.toISOString();
+        lastVisit.time_spent = timeSpent;
+    }
+    await update(walkinRef, {
+        'gym_data/is_checked_in': false,
+        'gym_data/last_checkout': now.toISOString(),
+        'gym_data/total_time_spent': (data.gym_data?.total_time_spent || 0) + timeSpent,
+        attendance_history: history
+    });
+    showMessage('Walk-in checked out successfully!', 'success');
 }
 
 document.addEventListener('DOMContentLoaded', init);
