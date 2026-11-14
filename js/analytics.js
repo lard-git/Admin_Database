@@ -177,7 +177,7 @@ function updatePredictionDisplay() {
     fill.style.width = `${confidencePct}%`;
     fill.style.backgroundColor = confidenceColor;
 
-    aiConfidence.textContent = p.closed ? p.factors[0] : `${confidencePct}% confidence \u2022 likely ${p.range[0]}\u2013${p.range[1]} check-ins \u2022 ${p.factors.join(', ')}`;
+    aiConfidence.textContent = p.closed ? p.factors[0] : `${confidencePct}% confidence \u2022 likely ${p.range[0]}\u2013${p.range[1]} check-ins`;
     aiConfidence.style.color = confidenceColor;
 
     let crowdLabel = document.getElementById('crowdLabel');
