@@ -1,5 +1,5 @@
 import { db } from './database_init.js';
-import { EnhancedForecaster } from './forecast.js';
+import { HoltWintersForecaster } from './holtwinters.js';   // to go back to the old seasonal-average forecaster: import { EnhancedForecaster } from './forecast.js'
 import { withLiveMembership } from './membership.js';
 import { ref, get, onValue } from './offline.js';
 
@@ -36,7 +36,7 @@ function getColors() {
 }
 function rgbaOf(hex, a) { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
 
-const forecaster = new EnhancedForecaster();
+const forecaster = new HoltWintersForecaster();   // falls back to the old method until there are 3 weeks of history
 
 const toInputDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
