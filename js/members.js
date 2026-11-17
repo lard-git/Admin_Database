@@ -1,7 +1,7 @@
 import { db } from './database_init.js';
 import { ref, get, update, remove, onValue } from './offline.js';
 import { liveRemainingDays, localDateKey, parseDate } from './membership.js';
-import { buildIncomeByDay, earliestMonth, incomeCSV, listMonths } from './income.js';
+import { buildIncomeByDay, earliestMonth, incomeCSV, incomeRows, listMonths } from './income.js';
 
 const customersRef = ref(db, "Customers");
 
@@ -705,21 +705,63 @@ async function showIncomeHistory() {
     _incEarliest = earliestMonth(_incDays) || curKey;
 
     const sel = document.getElementById('incomeExportSel');
-    if (sel) sel.innerHTML = '<option value="all">All history</option>' + listMonths(_incDays).reverse().map(m => `<option value="${m}">${_monthText(m)}</option>`).join('');
+    if (sel) sel.innerHTML = '<option value="all">All history</option><option value="custom">Custom range…</option>' + listMonths(_incDays).reverse().map(m => `<option value="${m}">${_monthText(m)}</option>`).join('');
     const btn = document.getElementById('incomeExportBtn');
     if (btn) btn.onclick = downloadIncomeCSV;
+    if (sel) sel.onchange = syncExportUI;
+    ['incomeExportFrom', 'incomeExportTo'].forEach(id => { const el = document.getElementById(id); if (el) el.onchange = syncExportUI; });
 
     const today = new Date();
     _incViewMonth = { year: today.getFullYear(), month: today.getMonth() };
     _renderIncomeMonth(_incViewMonth);
 }
 
-function downloadIncomeCSV() {
+// what the download box currently asks for: null = all history, 'YYYY-MM' = a month, { from, to } = custom range
+function _exportSpec() {
     const v = document.getElementById('incomeExportSel')?.value || 'all';
-    const csv = incomeCSV(_incDays, v === 'all' ? null : v);
+    if (v === 'all') return { v, spec: null };
+    if (v === 'custom') return { v, spec: { from: document.getElementById('incomeExportFrom')?.value, to: document.getElementById('incomeExportTo')?.value } };
+    return { v, spec: v };
+}
+
+// shows the From/To pickers only for "Custom range…", and a "dates · days · total" line like the Analytics page
+function syncExportUI() {
+    const custom = document.getElementById('incomeExportCustom'), info = document.getElementById('incomeExportInfo');
+    const from = document.getElementById('incomeExportFrom'), to = document.getElementById('incomeExportTo');
+    if (!custom || !info) return;
+    const { v, spec } = _exportSpec();
+    custom.hidden = v !== 'custom';
+    if (v !== 'custom') { info.textContent = ''; return; }
+
+    const today = localDateKey(), first = Object.keys(_incDays).sort()[0] || today;
+    from.min = to.min = first; from.max = to.max = today;
+    if (!from.value && !to.value) {                                           // first time only (both empty): the last 30 days
+        const f = new Date(); f.setDate(f.getDate() - 30);
+        from.value = localDateKey(f) < first ? first : localDateKey(f); to.value = today;
+        spec.from = from.value; spec.to = to.value;
+    }
+    const r = incomeRows(_incDays, spec);
+    if (!r) { info.textContent = 'Pick both dates.'; return; }
+    const f = k => parseDate(k).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    info.textContent = r.rows.length
+        ? `${f(r.from)} \u2013 ${f(r.to)} \u00b7 ${r.rows.length} day${r.rows.length === 1 ? '' : 's'} \u00b7 \u20b1${r.total.toLocaleString()}`
+        : 'No days in that range.';
+}
+
+function downloadIncomeCSV() {
+    const { v, spec } = _exportSpec();
+    let name;
+    if (v === 'all') name = 'income-all-history.csv';
+    else if (v === 'custom') {
+        const r = incomeRows(_incDays, spec);
+        if (!r) { alert('Pick both dates for the custom range.'); return; }
+        if (!r.rows.length) { alert('There are no days in that range.'); return; }
+        name = `income-${r.from}_to_${r.to}.csv`;
+    } else name = `income-${v}.csv`;
+    const csv = incomeCSV(_incDays, spec);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    a.download = v === 'all' ? 'income-all-history.csv' : `income-${v}.csv`;
+    a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
@@ -751,6 +793,7 @@ function _renderIncomeMonth(vm) {
 
     const sel = document.getElementById('incomeExportSel');
     if (sel) sel.value = monthStr;                       // the download box follows the month you're looking at
+    syncExportUI();
 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const rows = [];

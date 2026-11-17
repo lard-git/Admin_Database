@@ -195,6 +195,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Age: digits only, at most 3
     AgeInp.addEventListener('input', () => { AgeInp.value = AgeInp.value.replace(/\D/g, '').slice(0, 3); });
 
+    // Cellphone: digits only, at most 11. Letters/symbols are blocked as they are typed (beforeinput),
+    // and anything pasted or dropped in is cleaned up (input).
+    MobileInp.addEventListener('beforeinput', e => { if (e.data && /\D/.test(e.data)) e.preventDefault(); });
+    MobileInp.addEventListener('input', () => { MobileInp.value = MobileInp.value.replace(/\D/g, '').slice(0, 11); });
+
     document.getElementById("AddBtn").onclick = AddData;
 
     [FnameInp, LnameInp, MobileInp, UidInp, PaymentInp, FbNameInp, AgeInp, AddressInp].forEach(input => {

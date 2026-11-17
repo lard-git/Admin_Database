@@ -25,6 +25,7 @@
   th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--bd); } th { color:var(--mu); font-weight:500; }
   .note { color:var(--mu); font-size:12px; margin:8px 0 0; }
   #log { max-height:200px; overflow:auto; font:12px/1.7 ui-monospace,Consolas,monospace; color:var(--mu); background:var(--s2); border:1px solid var(--bd); border-radius:10px; padding:10px 12px; }
+  #wk input[type=number] { width:90px; padding:5px 8px; } #wk td, #wk th { padding:4px 8px; }
   .good { color:var(--ok); } .err { color:var(--bad); } .warn { color:var(--wn); }
 </style>
 </head>
@@ -70,6 +71,39 @@
     <table id="active"></table>
   </section>
 
+  <section id="bulk">
+    <h2>Bulk fill: weeks of test data</h2>
+    <p class="note" style="margin:0 0 12px">Creates visits for existing members (one visit per member per day) and walk-ins across a date range, following the weekly pattern and hours below. Preview first, then write. Everything it makes is marked, so "Remove generated data" can take it out again.</p>
+    <div class="row">
+      <div><label for="gWeeks">Weeks of data</label><input type="number" id="gWeeks" min="1" max="12" value="3"></div>
+      <div><label for="gEnd">Last day</label><input type="date" id="gEnd"></div>
+      <div><label for="gMembers">Members to use (blank = all)</label><input type="number" id="gMembers" min="1" placeholder="all"></div>
+      <div><label for="gSeed">Seed (blank = random each time)</label><input type="number" id="gSeed" placeholder="e.g. 42"></div>
+    </div>
+    <table id="wk"></table>
+    <div class="row" style="margin-top:12px">
+      <div><label for="gOpen">Opens</label><input type="time" id="gOpen" value="06:00"></div>
+      <div><label for="gClose">Closes</label><input type="time" id="gClose" value="21:00"></div>
+      <div><label for="gPeakFrom">Busy from</label><input type="time" id="gPeakFrom" value="17:00"></div>
+      <div><label for="gPeakTo">Busy until</label><input type="time" id="gPeakTo" value="20:00"></div>
+      <div><label for="gPeakW">Busy-time weight (×)</label><input type="number" id="gPeakW" min="1" step="0.5" value="3"></div>
+    </div>
+    <div class="row">
+      <div><label for="gStayMin">Shortest stay (min)</label><input type="number" id="gStayMin" min="5" value="45"></div>
+      <div><label for="gStayMax">Longest stay (min)</label><input type="number" id="gStayMax" min="5" value="100"></div>
+      <div><label for="gVar">Day-to-day variation (±%)</label><input type="number" id="gVar" min="0" max="100" value="20"></div>
+      <div><label for="gGrow">Growth per week (%)</label><input type="number" id="gGrow" step="1" value="0"></div>
+      <div><label for="gPay">Walk-in payment (₱)</label><input type="number" id="gPay" min="0" value="40"></div>
+    </div>
+    <label style="display:flex;align-items:center"><input type="checkbox" id="gTest" checked> Tag walk-ins as test (adds TEST to the key so the Cleanup tool can delete them)</label>
+    <div class="row" style="margin-top:12px">
+      <button id="gPreview">Preview</button>
+      <button id="gWrite" disabled>Write to database</button>
+      <button id="gClear" class="ghost">Remove generated data</button>
+    </div>
+    <p class="note" id="gSummary"></p>
+  </section>
+
   <section>
     <h2>Log</h2>
     <div id="log"></div>
@@ -100,7 +134,7 @@ const nameOf = (k, c) => `${c.personal_info?.firstname || ''} ${c.personal_info?
 async function run(btn, fn) {
   btn.disabled = true;
   try { await fn(); await load(); } catch (e) { log('Failed: ' + e.message, 'err'); }
-  btn.disabled = false;
+  btn.disabled = btn.id === 'gWrite' && !plan;   // Write stays off until there is a new preview
 }
 
 async function load() {
@@ -249,6 +283,144 @@ async function checkoutWalkin(key) {
   });
   log(`${w.personal_info?.lastname || key} checked out at ${fmt(outI)} (${t} min)`, 'good');
 }
+
+// ── bulk fill: weeks of customizable test data ──
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const num = (id, d = 0) => { const v = parseFloat($(id).value); return isNaN(v) ? d : v; };
+const hm = id => { const [h, m] = $(id).value.split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+const rng = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+const DOW = [['Mon', 1], ['Tue', 2], ['Wed', 3], ['Thu', 4], ['Fri', 5], ['Sat', 6], ['Sun', 0]];
+let plan = null;
+
+(function buildWeekTable() {
+  const t = $('wk'), h = t.insertRow();
+  ['Day', 'Open', 'Member visits', 'Walk-ins'].forEach(x => h.insertCell().outerHTML = `<th>${x}</th>`);
+  DOW.forEach(([n, d]) => {
+    const r = t.insertRow(), open = d !== 0;
+    r.insertCell().textContent = n;
+    r.insertCell().innerHTML = `<input type="checkbox" id="wkOpen${d}" ${open ? 'checked' : ''}>`;
+    r.insertCell().innerHTML = `<input type="number" id="wkMem${d}" min="0" value="${!open ? 0 : d === 6 ? 22 : 15}">`;
+    r.insertCell().innerHTML = `<input type="number" id="wkWalk${d}" min="0" value="${!open ? 0 : d === 6 ? 6 : 3}">`;
+  });
+  $('gEnd').value = ymd(new Date());
+})();
+
+function buildPlan() {
+  const rand = rng(parseInt($('gSeed').value) || Date.now()), now = Date.now();
+  const weeks = Math.min(12, Math.max(1, Math.round(num('gWeeks', 3))));
+  const [ey, em, ed] = $('gEnd').value.split('-').map(Number); if (!ey) throw new Error('Pick the last day.');
+  let pool = Object.keys(customers).filter(k => isMember(k) && !customers[k].gym_data?.is_checked_in);   // skip members currently in the gym
+  if (!pool.length) throw new Error('No members to use. Register some first.');
+  pool.sort(() => rand() - 0.5);
+  const want = Math.round(num('gMembers', 0)); if (want > 0) pool = pool.slice(0, want);
+
+  const openM = hm('gOpen'), closeM = hm('gClose'); if (closeM - openM < 60) throw new Error('Closing time must be at least an hour after opening.');
+  const pFrom = hm('gPeakFrom'), pTo = hm('gPeakTo'), pW = Math.max(1, num('gPeakW', 3));
+  const hours = []; for (let h = Math.floor(openM / 60); h < Math.ceil(closeM / 60); h++) hours.push([h, h * 60 >= pFrom && h * 60 < pTo ? pW : 1]);
+  const totalW = hours.reduce((s, x) => s + x[1], 0);
+  const sMin = num('gStayMin', 45), sMax = Math.max(sMin, num('gStayMax', 100));
+
+  const mk = day => {                                      // one visit on `day`: busy hours are picked more often
+    let r = rand() * totalW, h = hours[0][0];
+    for (const [hh, w] of hours) { if ((r -= w) <= 0) { h = hh; break; } }
+    const mins = Math.min(closeM - 15, Math.max(openM, h * 60 + Math.floor(rand() * 60)));
+    const a = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, mins);
+    let b = new Date(a.getTime() + Math.round(sMin + rand() * (sMax - sMin)) * 60000);
+    const close = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0, closeM);
+    if (b > close) b = close;
+    return b - a >= 600000 && b.getTime() <= now ? { a, b } : null;   // nothing in the future
+  };
+
+  const visits = [], walkins = [], perDay = {};
+  let capped = false;
+  for (let i = 0; i < weeks * 7; i++) {
+    const day = new Date(ey, em - 1, ed - (weeks * 7 - 1) + i), d = day.getDay();
+    if (!$('wkOpen' + d).checked) continue;
+    const f = Math.max(0, (1 + num('gGrow') / 100 * (i / 7)) * (1 + (rand() * 2 - 1) * num('gVar', 20) / 100));
+    const wantMem = Math.round(num('wkMem' + d) * f), nMem = Math.min(pool.length, wantMem), nWalk = Math.round(num('wkWalk' + d) * f);
+    if (wantMem > pool.length) capped = true;
+    const order = pool.slice().sort(() => rand() - 0.5);
+    for (let k = 0; k < nMem; k++) { const v = mk(day); if (v) { visits.push({ key: order[k], ...v }); perDay[ymd(day)] = (perDay[ymd(day)] || 0) + 1; } }
+    for (let k = 0; k < nWalk; k++) { const v = mk(day); if (v) { walkins.push(v); perDay[ymd(day)] = (perDay[ymd(day)] || 0) + 1; } }
+  }
+  return { visits, walkins, capped, pool: pool.length, members: new Set(visits.map(v => v.key)).size, days: Object.keys(perDay).length, first: ymd(new Date(ey, em - 1, ed - (weeks * 7 - 1))), last: ymd(new Date(ey, em - 1, ed)) };
+}
+
+async function previewPlan() {
+  await load();
+  plan = buildPlan();
+  $('gSummary').textContent = `Ready: ${plan.visits.length} member visits (${plan.members} members) and ${plan.walkins.length} walk-ins over ${plan.days} open days, ${plan.first} to ${plan.last}. ${plan.capped ? ` Some days wanted more member visits than the ${plan.pool} members available (one visit per member per day), so those days were capped.` : ''} Nothing is saved until you press Write.`;
+  $('gWrite').disabled = !(plan.visits.length || plan.walkins.length);
+}
+
+const mkWalkin = (a, b, pay, key, id) => {
+  const t = minsBetween(a, b), day = dayOf(a);
+  return {
+    personal_info: { firstname: 'WALK-IN', lastname: `#${id}`, uid: key, type: 'daypass' },
+    gym_data: { is_checked_in: false, last_checkin: a, last_checkout: b, total_visits: 1, total_time_spent: t, time_spent: t, uid: key },
+    membership: { status: 'completed', remaining_days: 1, start_date: day, end_date: day },
+    attendance_history: [{ checkin: a, checkout: b, time_spent: t, date: day }],
+    payment: pay, gen: true
+  };
+};
+
+async function writePlan() {
+  if (!plan) throw new Error('Press Preview first.');
+  await load();                                            // newest copy of the members before merging visits into them
+  const byKey = {}; plan.visits.forEach(v => (byKey[v.key] ||= []).push(v));
+  const entries = Object.entries(byKey).filter(([k]) => customers[k]);
+  for (let i = 0; i < entries.length; i += 25) {
+    const body = {};
+    entries.slice(i, i + 25).forEach(([key, vs]) => {
+      const m = customers[key], g = m.gym_data || {};
+      const add = vs.map(v => { const a = v.a.toISOString(), b = v.b.toISOString(); return { checkin: a, checkout: b, time_spent: minsBetween(a, b), date: dayOf(a), gen: true }; });
+      const newest = add.reduce((x, y) => (y.checkin > x.checkin ? y : x));
+      body[`${key}/attendance_history`] = normHist(m.attendance_history).concat(add).sort((x, y) => (y.checkin > x.checkin ? 1 : -1));
+      body[`${key}/gym_data/total_visits`] = (g.total_visits || 0) + add.length;
+      body[`${key}/gym_data/total_time_spent`] = (g.total_time_spent || 0) + add.reduce((s, v) => s + v.time_spent, 0);
+      if (!g.last_checkin || newest.checkin > g.last_checkin) { body[`${key}/gym_data/last_checkin`] = newest.checkin; body[`${key}/gym_data/last_checkout`] = newest.checkout; }
+    });
+    await patch('Customers.json', body);
+  }
+  const tag = $('gTest').checked ? 'TEST_' : '', pay = num('gPay', 40);
+  for (let i = 0; i < plan.walkins.length; i += 100) {
+    const body = {};
+    plan.walkins.slice(i, i + 100).forEach((w, j) => {
+      const a = w.a.toISOString(), b = w.b.toISOString(), ts = w.a.getTime() + i + j, key = `WALKIN_${dayOf(a)}_${tag}${ts}`;
+      body[key] = mkWalkin(a, b, pay, key, String(ts).slice(-4));
+    });
+    await patch('Customers.json', body);
+  }
+  log(`Wrote ${plan.visits.length} member visits and ${plan.walkins.length} walk-ins (${plan.first} to ${plan.last})`, 'good');
+  plan = null; $('gWrite').disabled = true; $('gSummary').textContent = '';
+}
+
+async function clearGenerated() {
+  await load();
+  const members = Object.entries(customers).filter(([k, c]) => isMember(k) && normHist(c.attendance_history).some(v => v.gen));
+  const walk = Object.entries(customers).filter(([k, c]) => k.startsWith('WALKIN_') && (c.gen || k.includes('_TEST_'))).map(([k]) => k);
+  const nVisits = members.reduce((s, [, c]) => s + normHist(c.attendance_history).filter(v => v.gen).length, 0);
+  if (!members.length && !walk.length) { log('Nothing generated to remove.', 'warn'); return; }
+  if (!confirm(`Remove ${nVisits} generated member visits and ${walk.length} generated walk-ins?`)) return;
+  for (let i = 0; i < members.length; i += 25) {
+    const body = {};
+    members.slice(i, i + 25).forEach(([key, m]) => {
+      const g = m.gym_data || {}, all = normHist(m.attendance_history), gone = all.filter(v => v.gen), keep = all.filter(v => !v.gen).sort((x, y) => (y.checkin > x.checkin ? 1 : -1));
+      body[`${key}/attendance_history`] = keep;
+      body[`${key}/gym_data/total_visits`] = Math.max(0, (g.total_visits || 0) - gone.length);
+      body[`${key}/gym_data/total_time_spent`] = Math.max(0, (g.total_time_spent || 0) - gone.reduce((s, v) => s + (v.time_spent || 0), 0));
+      if (gone.some(v => v.checkin === g.last_checkin)) { body[`${key}/gym_data/last_checkin`] = keep[0]?.checkin ?? null; body[`${key}/gym_data/last_checkout`] = keep[0]?.checkout ?? null; }
+    });
+    await patch('Customers.json', body);
+  }
+  for (let i = 0; i < walk.length; i += 100) { const body = {}; walk.slice(i, i + 100).forEach(k => body[k] = null); await patch('Customers.json', body); }
+  log(`Removed ${nVisits} generated visits and ${walk.length} generated walk-ins`, 'warn');
+}
+
+$('bulk').addEventListener('input', () => { plan = null; $('gWrite').disabled = true; $('gSummary').textContent = ''; });
+$('gPreview').onclick = e => run(e.target, previewPlan);
+$('gWrite').onclick = e => run(e.target, writePlan);
+$('gClear').onclick = e => run(e.target, clearGenerated);
 
 $('mSearch').oninput = () => { renderMembers(); renderHistory(); };
 $('mSel').onchange = renderHistory;

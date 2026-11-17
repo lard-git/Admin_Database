@@ -51,26 +51,46 @@ export function listMonths(days, today = new Date()) {
     return out;
 }
 
-// CSV text. month = 'YYYY-MM' for one month, or null for all history. Opens straight in Excel.
-export function incomeCSV(days, month, today = new Date()) {
-    const todayKey = localDateKey(today);
+// Works out the first and last day (inclusive, 'YYYY-MM-DD', never in the future) for a download.
+// spec: 'YYYY-MM' for one month | { from, to } for a custom range (either order) | null for all history.
+// Returns null when a custom range is missing a date. A custom range that starts before the first payment is cut to start
+// there (those days have nothing to report), so a mistyped year can't produce thousands of empty rows.
+export function resolveRange(days, spec, today = new Date()) {
+    const todayKey = localDateKey(today), first = Object.keys(days).sort()[0] || todayKey;
     let from, to;
-    if (month) {
-        const [y, m] = month.split('-').map(Number);
-        from = `${month}-01`;
-        to = `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
-        if (to > todayKey) to = todayKey;                       // no future days
+    if (spec && typeof spec === 'object') {
+        from = dayOf(spec.from); to = dayOf(spec.to);
+        if (!from || !to) return null;
+        if (from > to) [from, to] = [to, from];                 // dates entered backwards: swap
+        if (from < first) from = first;
+    } else if (spec) {
+        const [y, m] = spec.split('-').map(Number);
+        from = `${spec}-01`;
+        to = `${spec}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
     } else {
-        from = Object.keys(days).sort()[0] || todayKey;
-        to = todayKey;
+        from = first; to = todayKey;
     }
-    const rows = [['Date', 'Memberships (PHP)', 'Walk-ins (PHP)', 'Total (PHP)']];
-    let tm = 0, tw = 0;
-    for (let d = parseDate(from); localDateKey(d) <= to; d.setDate(d.getDate() + 1)) {
+    if (to > todayKey) to = todayKey;                           // no future days
+    return { from, to };
+}
+
+// one row per day in the range + the totals
+export function incomeRows(days, spec, today = new Date()) {
+    const r = resolveRange(days, spec, today);
+    if (!r) return null;
+    const rows = []; let tm = 0, tw = 0;
+    for (let d = parseDate(r.from); localDateKey(d) <= r.to; d.setDate(d.getDate() + 1)) {
         const k = localDateKey(d), v = days[k] || { membership: 0, walkin: 0 };
         tm += v.membership; tw += v.walkin;
         rows.push([k, v.membership, v.walkin, v.membership + v.walkin]);
     }
-    rows.push(['TOTAL', tm, tw, tm + tw]);
-    return '\uFEFF' + rows.map(r => r.join(',')).join('\r\n') + '\r\n';
+    return { ...r, rows, memberships: tm, walkins: tw, total: tm + tw };
+}
+
+// CSV text. spec as for resolveRange (month, { from, to } or null = all history). Opens straight in Excel.
+export function incomeCSV(days, spec, today = new Date()) {
+    const r = incomeRows(days, spec, today) || { rows: [], memberships: 0, walkins: 0, total: 0 };
+    const head = ['Date', 'Memberships (PHP)', 'Walk-ins (PHP)', 'Total (PHP)'];
+    const foot = ['TOTAL', r.memberships, r.walkins, r.total];
+    return '\uFEFF' + [head, ...r.rows, foot].map(x => x.join(',')).join('\r\n') + '\r\n';
 }

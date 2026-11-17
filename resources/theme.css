@@ -223,4 +223,10 @@
   .income-export { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 16px; }
   .income-export select { width: auto; min-width: 190px; padding: 9px 12px; }
   .income-export .btn { margin: 0; white-space: nowrap; }
+  .income-export [hidden] { display: none !important; }
+  .income-export #incomeExportCustom { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .income-export input[type=date] { width: auto; padding: 9px 12px; font: inherit; font-size: 13px; }
+  .income-export input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .7; }
+  .income-export .range-sep, .income-export small { color: var(--fa); font-size: 12px; }
+  .income-export small { flex-basis: 100%; }
 }

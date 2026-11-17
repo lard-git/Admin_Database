@@ -113,7 +113,13 @@
       </div>
       <div class="income-export">
         <select id="incomeExportSel" aria-label="What to download"></select>
+        <span id="incomeExportCustom" hidden>
+          <input type="date" id="incomeExportFrom" aria-label="From date">
+          <span class="range-sep">to</span>
+          <input type="date" id="incomeExportTo" aria-label="To date">
+        </span>
         <button id="incomeExportBtn" class="btn btn-secondary">Download CSV</button>
+        <small id="incomeExportInfo"></small>
       </div>
       <div id="incomeHistoryContent" class="income-table-wrap"></div>
     </div>
